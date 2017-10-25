@@ -14,10 +14,40 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
 
-<h1>Welcome, <b><span th:text='${email}'>&lt;email&gt;</span></b></h1>
+<h1>Welcome, <b>
+<span th:text='${givenName}'>&lt;givenName&gt;</span>
+<span th:text='${familyName}'>&lt;familyName&gt;</span>
+<span th:text='${email}'>&lt;email&gt;</span>
 
-<p>What is <span th:text='${num1}'>&lt;num1&gt;</span> + <span th:text='${num2}'>&lt;num2&gt;</span>?
+</b></h1>
+
+<p>We'd like to understand how well you can add random pairs of numbers together, while under time pressure.
 </p>
+
+<h1>Go!</h1>
+
+<form action="#" th:action="@{/quiz/{key}(key=${key})}" th:object="${quizForm}" method="post">
+
+<p>
+<input type="text" th:field="*{q1a}" /> + <input type="text" th:field="*{q1b}" /> = <input type="text" th:field="*{a1}" /> 
+</p>
+
+<p>
+<input type="text" th:field="*{q2a}" /> + <input type="text" th:field="*{q2b}" /> = <input type="text" th:field="*{a2}" /> 
+</p>
+
+<p>
+<input type="text" th:field="*{q3a}" /> + <input type="text" th:field="*{q3b}" /> = <input type="text" th:field="*{a3}" /> 
+</p>
+
+<p>
+<input type="text" th:field="*{q4a}" /> + <input type="text" th:field="*{q4b}" /> = <input type="text" th:field="*{a4}" /> 
+</p>
+    	
+<p><input type="submit" value="Submit" /> <input type="reset" value="Reset" />
+</p>
+
+</form>
 
 </body>
 	

@@ -15,6 +15,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 //import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -43,9 +44,11 @@ public class APIController {
 	private static final Logger logger = LoggerFactory.getLogger(APIController.class);
 
 	public final static String APP = "gauge";
-	public final static String SECRET = "NKhBcvL7OGFaIkRf4G-mGPgzr0RMDOGYO0EWjbY_";
+	public final static String SECRET = "L6nkoNY08zxuVqmcORT0qqFdO_G_-uNLA27qtYRB";
 	public final static String APPBASE = "https://" + APP + ".communityapps.talentappstore.com";
 
+	@Autowired
+	private AssessmentRepository repo;
 
 	private RestTemplate restTemplate = new RestTemplate();
 
@@ -66,7 +69,31 @@ public class APIController {
 		return new HttpEntity(headers);
 	}
 
-	
+
+	/////////////////////////////////////////////////////
+	// Helpers
+
+	// call tenant API GET /assessments/byID/{id} to fetch the assessment detail 
+	private ObjectNode fetchAssessment(String tenant, long id) throws JsonParseException, JsonMappingException, IOException {
+		logger.info("calling GET /assessments/byID/{id} for tenant " + tenant + " and id " + id);
+		String url = "https://" + APP + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id;
+		String assessmentDetail = restTemplate.exchange(url, HttpMethod.GET, entityWithSecret(), String.class).getBody(); 
+		logger.info("assessment details is: " + assessmentDetail);
+		ObjectNode assessment = new ObjectMapper().readValue(new StringReader(assessmentDetail), ObjectNode.class);
+		return assessment;
+	}
+
+	// call tenant API GET /assessments/byID/{id} to fetch the assessment detail 
+	private ObjectNode fetchView(String tenant, String key) throws JsonParseException, JsonMappingException, IOException {
+		logger.info("calling GET /applications/views/byKey/{key} for tenant " + tenant + " and key " + key);
+		String url = "https://" + APP + ".tazzy.io/t/" + tenant + "/devs/tas/applications/views/byKey/" + key;
+		String viewDetail = restTemplate.exchange(url, HttpMethod.GET, entityWithSecret(), String.class).getBody(); 
+		logger.info("view detail is: " + viewDetail);
+		ObjectNode view = new ObjectMapper().readValue(new StringReader(viewDetail), ObjectNode.class);
+		return view;
+	}
+
+
 	/////////////////////////////////////////////////////
 	// Tenant APIs
 
@@ -106,7 +133,7 @@ public class APIController {
 						"		    \"daysToExpire\": 365," +
 						"		    \"isPassFail\": true," +
 						"		    \"canReuse\": true," +
-						"		    \"userDescription\": \"Gauge the candidate's ability to answer a basic arithmetic question.\"," +
+						"		    \"userDescription\": \"Gauge the candidate's ability to add random pairs of numbers together, under time pressure.\"," +
 						"		    \"appCommunicatesDirectlyToCandidate\": false," +
 						"		    \"image\": \"" + imageUrl + "\"" + 
 						"		  }" +
@@ -117,96 +144,71 @@ public class APIController {
 
 	// this endpoint gets hit whenever one of our assessments is created, or updated, by a user (or automatically)
 	@RequestMapping(value = "/t/{tenant}/tas/devs/tas/assessments/byID/{id}/tenantDeltaPings", method = RequestMethod.POST)
-	public String deltaPings(@PathVariable String tenant, @PathVariable long id, @RequestHeader("tazzy-secret") String secret) throws JsonParseException, JsonMappingException, IOException {
+	public String deltaPings(@PathVariable String tenant,
+			@PathVariable long id,
+			@RequestHeader("tazzy-secret") String secret) throws JsonParseException, JsonMappingException, IOException {
 
+		
 		logger.info("in POST /assessments/byID/{id}/tenantDeltaPings for tenant " + tenant + " and id " + id);
 
 		if (! secret.equals(SECRET)) throw new UnauthorizedException(); // check incoming tazzy-secret
 
-		// call GET /assessments/byID/{id} to fetch the assessment detail (which includes the view key)
-		String assessmentDetail;
-		{
-			logger.info("calling GET /assessments/byID/{id} for tenant " + tenant + " and id " + id);
-			String url = "https://" + APP + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id;
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entityWithSecret(), String.class);
-			assessmentDetail = response.getBody();
-			logger.info("assessment details is: " + assessmentDetail);
-		}
-
-		// prepare to dig into the assessment body. We're using dynamic json handling, not POJOs, so this is a little verbose (Java!)
-		ObjectNode assessment;
-		{
-			Reader reader = new StringReader(assessmentDetail);
-			ObjectMapper objectMapper = new ObjectMapper();
-			assessment = objectMapper.readValue(reader, ObjectNode.class);
-		}
-
-		// pull the view key out from the assessment detail
-		int viewKey = assessment.get("view").asInt();
-
-		// now call GET /applications/views/byKey/{key} to grab the view itself via another API call
-		String givenName;
-		String familyName;
-		String email;
-		{
-			logger.info("calling GET /applications/views/byKey/{key} for tenant " + tenant + " and key " + viewKey);
-			String url = "https://" + APP + ".tazzy.io/t/" + tenant + "/devs/tas/applications/views/byKey/{key}";
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entityWithSecret(), String.class, viewKey);
-			String viewDetail = response.getBody();
-			logger.info("view detail is: " + viewDetail);
-
-			// prepare to dig into the view body
-			ObjectNode view;
-			{
-				Reader reader = new StringReader(viewDetail);
-				ObjectMapper objectMapper = new ObjectMapper();
-				view = objectMapper.readValue(reader, ObjectNode.class);
-			}
-
-			// extract basic details from the json. For more complex stuff - phone numbers, user defined fields, etc. - we might have to parse the vcard, look at items, etc.
-			givenName =		view.get("candidate").get("person").get("givenName").asText(); 
-			familyName =	view.get("candidate").get("person").get("familyName").asText(); 
-			email =			""; // view.get("candidate").get("person").get("email").asText();  TODO: reinstate once bug fixed
-		}
+		// call GET /assessments/byID/{id} to fetch the assessment detail (which includes the view key) as an ObjectNode
+		ObjectNode assessment = fetchAssessment(tenant, id); 
 
 		//	switch, based on the assessment's status
 		String status = assessment.get("status").asText();
 		if (status.equals("Started")) {
-			// if the assessment is new, then we want to set up the candidate's quiz, point them to it, and set status to "In progress"
-			{
-				// this demo code has terrible security fails - e.g., we burn details into the url to avoid the need for a db, we do bad init of the Random object, etc.
-				Random randy = new Random();
-				String candidateUrl = APPBASE + "/tenants/" + tenant + "/quiz"
-		        		+ "?assessment=" + id
-		        		+ "&num1=" + randy.nextInt(10) // random number between 0 and 9
-		        		+ "&num2=" + randy.nextInt(10) // random number between 0 and 9
-		        		
-				// These arguments have been omitted until https://github.com/talentappstore/assessmenthub/issues/85 is fixed 
-				//		        		+ "&givenName=" + URLEncoder.encode(givenName, "UTF-8")
-				//		        		+ "&familyName=" + URLEncoder.encode(familyName, "UTF-8")
-				//		        		+ "&email=" + URLEncoder.encode(email, "UTF-8")
-				;
+			
+			// since we never set our assessments to Error, we know this is a new assessment, not a restarted one. Grab some details
+			// from it, and store in our database
+			String viewKey = assessment.get("view").asText();
+			String givenName = assessment.get("givenName") != null ? assessment.get("givenName").asText() : "";
+			String familyName = assessment.get("familyName") != null ? assessment.get("familyName").asText() : "";
+			String email = assessment.get("email") != null ? assessment.get("email").asText() : "";
 
-				String reqBody = 
-						"	        {" +
-								"       	  \"status\": \"In progress\"," +
-								"       	  \"interactionUris\": {" +
-								"       	    \"candidateInteractionUri\": \"" + candidateUrl + "\"," +
-								"       	    \"userInteractionUri\": null," +
-								"       	    \"userAttentionRequired\": false" +
-								"       	  }" +
-								"       	}";
+			// in our case, we also want more details - specifically the candidate's phone number - we grab it from the view
+			ObjectNode view = fetchView(tenant, viewKey);
+			// extract phone number from the view
+			String phoneNumber = "0064-9-3660348"; // view.get("candidate").get("person").get("givenName").asText(); 
 
-				// now PATCH the assessment to have the candidate URL. This will cause an email to be sent to the candidate, with this link in it, leading to our web page.
-				// Many apps will handle their own email communication with the candidate (assuming the tenant has decided to give them access to the email).
-				String url = "https://" + APP + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id + "/appDetails";
-				logger.info("calling PATCH " + url + " with request body: " + reqBody);
-				RestTemplate restTemplatePatcher = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
-				ResponseEntity<Void> response = restTemplatePatcher.exchange(url, HttpMethod.PATCH,
-						entityWithSecret(reqBody, new MediaType("application", "merge-patch+json")), Void.class);
-			}
+			// store the assessment details, along with some random addition problems for the candidate 
+			Random randy = new Random();
+			Assessment newOne = new Assessment(tenant, id, "In progress",
+					givenName,
+					familyName,
+					phoneNumber,
+					randy.nextInt(100), // random number between 0 and 99
+					randy.nextInt(100),
+					randy.nextInt(100),
+					randy.nextInt(100),
+					randy.nextInt(100),
+					randy.nextInt(100),
+					randy.nextInt(100),
+					randy.nextInt(100));
+			repo.save(newOne);
+			
+			String candidateUrl = APPBASE + "/quiz/" + newOne.getKey();
+
+			String reqBody = 
+					"	        {" +
+							"       	  \"status\": \"In progress\"," +
+							"       	  \"interactionUris\": {" +
+							"       	    \"candidateInteractionUri\": \"" + candidateUrl + "\"," +
+							"       	    \"userInteractionUri\": null," +
+							"       	    \"userAttentionRequired\": false" +
+							"       	  }" +
+							"       	}";
+
+			// now PATCH the assessment to have the candidate URL. For our assessment type, this will cause an email to be sent to the candidate, with
+			// this link in it.
+			String url = "https://" + APP + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id + "/appDetails";
+			logger.info("calling PATCH " + url + " with request body: " + reqBody);
+			RestTemplate restTemplatePatcher = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
+			ResponseEntity<Void> response = restTemplatePatcher.exchange(url, HttpMethod.PATCH,
+					entityWithSecret(reqBody, new MediaType("application", "merge-patch+json")), Void.class);
 		} else {
-			logger.info("unhandled status " + status);
+			logger.error("unhandled status " + status);
 		}
 
 		return "done!";
