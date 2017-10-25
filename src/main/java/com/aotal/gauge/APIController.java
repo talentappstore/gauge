@@ -56,14 +56,14 @@ public class APIController {
 	 * helper method to make API calls with the tazzy-secret header as required when making API calls on TAS, and optionally a request body
 	 * @return
 	 */
-	private HttpEntity<String> entityWithSecret(String body, MediaType contentType) {
+	static HttpEntity<String> entityWithSecret(String body, MediaType contentType) {
 		HttpHeaders headers = new HttpHeaders();
 		headers.set("tazzy-secret", SECRET);  // attaching the "tazzy-secret" request header
 		headers.setContentType(contentType);
 		return new HttpEntity<String>(body, headers);
 	}
 
-	private HttpEntity entityWithSecret() {
+	static HttpEntity entityWithSecret() {
 		HttpHeaders headers = new HttpHeaders();
 		headers.set("tazzy-secret", SECRET);  // attaching the "tazzy-secret" request header
 		return new HttpEntity(headers);
@@ -71,7 +71,7 @@ public class APIController {
 
 
 	/////////////////////////////////////////////////////
-	// Helpers
+	// API Helpers
 
 	// call tenant API GET /assessments/byID/{id} to fetch the assessment detail 
 	private ObjectNode fetchAssessment(String tenant, long id) throws JsonParseException, JsonMappingException, IOException {
@@ -129,9 +129,9 @@ public class APIController {
 				"		[" +
 						"		  {" +
 						"		    \"key\": \"gauge\"," +
-						"		    \"userTitle\": \"Math test\"," +
+						"		    \"userTitle\": \"Quick addition test\"," +
 						"		    \"daysToExpire\": 365," +
-						"		    \"isPassFail\": true," +
+						"		    \"isPassFail\": false," +
 						"		    \"canReuse\": true," +
 						"		    \"userDescription\": \"Gauge the candidate's ability to add random pairs of numbers together, under time pressure.\"," +
 						"		    \"appCommunicatesDirectlyToCandidate\": false," +

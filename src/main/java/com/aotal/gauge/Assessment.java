@@ -32,6 +32,8 @@ public class Assessment {
     int q4a;
     int q4b;
 
+    // score
+    int score;
     
     public Long getKey() {
 		return key;
@@ -75,6 +77,48 @@ public class Assessment {
 
 	public int getQ4b() {
 		return q4b;
+	}
+
+
+	public int getScore() {
+		return score;
+	}
+
+
+	public void setScore(int score) {
+		this.score = score;
+	}
+
+	
+
+	public String getTenant() {
+		return tenant;
+	}
+
+
+	public void setTenant(String tenant) {
+		this.tenant = tenant;
+	}
+
+
+	public Long getAssessmentID() {
+		return assessmentID;
+	}
+
+
+	public void setAssessmentID(Long assessmentID) {
+		this.assessmentID = assessmentID;
+	}
+
+	
+
+	public String getStatus() {
+		return status;
+	}
+
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 
 
