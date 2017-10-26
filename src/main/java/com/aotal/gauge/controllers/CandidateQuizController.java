@@ -1,4 +1,4 @@
-package com.aotal.gauge;
+package com.aotal.gauge.controllers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
+
+import com.aotal.gauge.jpa.Assessment;
+import com.aotal.gauge.jpa.AssessmentRepository;
 
 @Controller
 public class CandidateQuizController {

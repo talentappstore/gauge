@@ -1,4 +1,4 @@
-package com.aotal.gauge;
+package com.aotal.gauge.controllers;
 
 public class QuizForm {
 

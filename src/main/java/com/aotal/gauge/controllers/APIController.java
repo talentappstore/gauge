@@ -1,4 +1,4 @@
-package com.aotal.gauge;
+package com.aotal.gauge.controllers;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -32,6 +33,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import com.aotal.gauge.jpa.Account;
+import com.aotal.gauge.jpa.AccountRepository;
+import com.aotal.gauge.jpa.Assessment;
+import com.aotal.gauge.jpa.AssessmentRepository;
+import com.aotal.gauge.pojos.AppStatus;
+import com.aotal.gauge.pojos.Tenant;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,13 +51,17 @@ public class APIController {
 	private static final Logger logger = LoggerFactory.getLogger(APIController.class);
 
 	public final static String APP = "gauge";
-	public final static String SECRET = "L6nkoNY08zxuVqmcORT0qqFdO_G_-uNLA27qtYRB";
+	public final static String SECRET = "KR9xElELRHS7mlrdpmJug-pytvxVT3NySlVuP2JY";
 	public final static String APPBASE = "https://" + APP + ".communityapps.talentappstore.com";
 
 	@Autowired
-	private AssessmentRepository repo;
+	private AssessmentRepository assessmentRepo;
 
-	private RestTemplate restTemplate = new RestTemplate();
+	@Autowired
+	private AccountRepository accountRepo;
+	
+	@Autowired
+	RestTemplate restTemplate;
 
 	/**
 	 * helper method to make API calls with the tazzy-secret header as required when making API calls on TAS, and optionally a request body
@@ -93,25 +104,38 @@ public class APIController {
 		return view;
 	}
 
+	
 
 	/////////////////////////////////////////////////////
 	// Tenant APIs
 
 	// respond with details of our app, e.g. its landing page (when user clicks "open" on the app in the storefront) 
 	@RequestMapping(value = "/t/{tenant}/tas/devs/tas/appStatus", method = RequestMethod.GET)
-	public String appStatus(@PathVariable String tenant, @RequestHeader("tazzy-secret") String secret) {
+	public AppStatus appStatus(@PathVariable String tenant, @RequestHeader("tazzy-secret") String secret) {
 
 		logger.info("in GET /appStatus for tenant " + tenant);
 
+		if (! secret.equals(SECRET)) {
+				logger.error("mismatching keys: code has " + SECRET + ", incoming is " + secret);
+		}
+		
 		if (! secret.equals(SECRET)) throw new UnauthorizedException(); // check incoming tazzy-secret
 
+		// tell the user that setup is needed if they have no credits left
+		Account account = accountRepo.findByTenant(tenant);
+/*		
 		String ret = 			
 				"{" +
-						"  \"landingPage\": \"" + APPBASE + "/tenants/" + tenant + "\"," +
-						"  \"setupRequired\": false" +
+						"  \"landingPage\": \"" + APPBASE + "/t/" + tenant + "/account\"," +
+						"  \"setupRequired\": " + (account.getCreditsRemaining() == 0 ? "true": "false") +
 						"}";
-
-		return ret;
+*/
+;
+		
+		return new AppStatus(
+				APPBASE + "/t/" + tenant + "/account",
+				null,
+				account.getCreditsRemaining() == 0);
 	}
 
 
@@ -186,7 +210,7 @@ public class APIController {
 					randy.nextInt(100),
 					randy.nextInt(100),
 					randy.nextInt(100));
-			repo.save(newOne);
+			assessmentRepo.save(newOne);
 			
 			String candidateUrl = APPBASE + "/quiz/" + newOne.getKey();
 
@@ -220,11 +244,15 @@ public class APIController {
 
 	// purely for example, we don't do anything here (we don't even have a database that might hold customer details)
 	@RequestMapping(value = "/tas/core/tenants", method = RequestMethod.POST)
-	public void createTenant(@RequestBody String body, @RequestHeader("tazzy-secret") String secret) {
-
-		logger.info("in POST /tenants with payload " + body );
+	public void createTenant(@RequestBody Tenant tenant, @RequestHeader("tazzy-secret") String secret) {
 
 		if (! secret.equals(SECRET)) throw new UnauthorizedException(); // check incoming tazzy-secret
+
+		logger.info("inserting account for tenant " + tenant);
+		
+		// create an account in our database, with 0 credits
+		Account account = new Account(tenant.shortCode, 0,  0);
+		accountRepo.save(account);
 	}
 
 	// purely for example, we don't do anything here (we don't even have a database that might hold customer details)
@@ -234,6 +262,13 @@ public class APIController {
 		logger.info("in DELETE /tenants/{tenant} for tenant " + tenant);
 
 		if (! secret.equals(SECRET)) throw new UnauthorizedException(); // check incoming tazzy-secret
+
+		logger.info("deleting account for tenant " + tenant);
+
+		// delete the account and all linked assessments in our database, with 0 credits
+		Account account = accountRepo.findByTenant(tenant);
+		// TODO: delete assessments as well 
+		accountRepo.delete(account);
 	}
 
 

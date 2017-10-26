@@ -1,4 +1,4 @@
-package com.aotal.gauge;
+package com.aotal.gauge.jpa;
 
 import java.util.Random;
 

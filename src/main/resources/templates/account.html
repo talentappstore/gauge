@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"></meta>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"></meta>
+    <meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content=""></meta>
+    <meta name="author" content=""></meta>
+    <link rel="icon" href="../../favicon.ico" th:href="@{../../favicon.ico}"></link>
+
+    <title>Gauge - account details</title>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+</head>
+<body>
+
+<a th:href='${tenant.logoUrl}'>logoUrl</a><br />
+<h1 th:text='${tenant.name}'>name</h1>
+<p>
+Owner: <span th:text='${tenant.name}'>contactEmail</span><br />
+Type: <span th:text='${tenant.name}'>type</span><br />
+You: <span th:text='${givenName}'>&lt;givenName&gt;</span> <span th:text='${familyName}'>&lt;familyName&gt;</span> (<span th:text='${email}'>&lt;email&gt;</span>)
+</p>
+
+<p>We hope you enjoy using Gauge arithmetic testing to help build your team.
+</p>
+
+<h1>Your gauge quiz credits</h1>
+<table>
+<tbody>
+<tr><td>Remaining quizzes:</td><td th:text='${remaining}'>??</td></tr>
+<tr><td>Used quizzes:</td><td th:text='${used}">??</td></tr>
+</tbody>
+</table>
+
+<form action="#" th:action="@{/t/{tenant}/account}" th:object="${accountForm}" method="post">
+<p>Get credits: <input type="submit" name="1credit" value="1 credit" /><input type="submit" name="5credits" value="5 credits" />
+</p>
+</form>
+
+</body>
+	
+</html>
