@@ -41,25 +41,29 @@ public class AccountController {
 	@Autowired
 	private RestTemplate rest;
 
+	// helper method to call core API to fetch tenant details, and attach to model as well
+	private void populateModel(Account account, Model model) {
+		// attach the account
+		model.addAttribute("account", account);
+		
+		// get tenant details and attach as well
+		logger.info("calling GET /tenants/{} for tenant " + account.getTenant());
+		String url = "https://" + APIController.APP + ".tazzy.io/core/tenants/" + account.getTenant();
+		Tenant tenantObject = rest.exchange(url, HttpMethod.GET, APIController.entityWithSecret(), Tenant.class).getBody(); 
+		model.addAttribute("tenant", tenantObject);
+	}
+	
 	// when user views their account
-    @GetMapping("/t/{tenant}/account")
+    @GetMapping("/tenant/{tenant}/account")
 	public String getAccount(Model model, @PathVariable String tenant) {
 
 		Account account = repo.findByTenant(tenant);
-		model.addAttribute("used", account.getCreditsUsed());
-		model.addAttribute("remaining", account.getCreditsRemaining());
-
-		// call core API to fetch tenant details, and attach to model as well
-		logger.info("calling GET /tenants/{} for tenant " + tenant);
-		String url = "https://" + APIController.APP + ".tazzy.io/core/tenants/" + tenant;
-		Tenant tenantObject = rest.exchange(url, HttpMethod.GET, APIController.entityWithSecret(), Tenant.class).getBody(); 
-		model.addAttribute("tenant", tenant);
-		
+		populateModel(account, model);
 		return "account";
 	}
 
-    // when candidate clicks to request credits
-    @RequestMapping(value = "/t/{tenant}/account", params = "1credit", method = RequestMethod.POST)
+    // when candidate clicks to request 1 credits
+    @RequestMapping(value = "/tenant/{tenant}/account", params = "1credit", method = RequestMethod.POST)
 	public String credit1Account(Model model, @PathVariable String tenant) {
 		
 		// update credits on database
@@ -67,11 +71,13 @@ public class AccountController {
 		account.setCreditsRemaining(account.getCreditsRemaining() + 1);
 		repo.save(account);
 
+		// load up model and redisplay
+		populateModel(account, model);
 		return "account";
 	}
 
-    // when candidate clicks to request credits
-    @RequestMapping(value = "/t/{tenant}/account", params = "5credits", method = RequestMethod.POST)
+    // when candidate clicks to request 5 credits
+    @RequestMapping(value = "/tenant/{tenant}/account", params = "5credits", method = RequestMethod.POST)
 	public String credit5Account(Model model, @PathVariable String tenant) {
 		
 		// update credits on database
@@ -79,6 +85,8 @@ public class AccountController {
 		account.setCreditsRemaining(account.getCreditsRemaining() + 5);
 		repo.save(account);
 
+		// load up model and redisplay
+		populateModel(account, model);
 		return "account";
 	}
 	

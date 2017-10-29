@@ -41,6 +41,11 @@ public class Account {
 		this.creditsRemaining = creditsRemaining;
 		this.creditsUsed = creditsUsed;
 	}
+
+	public Account() {
+		super();
+	}
+	
 	@Override
     public String toString() {
         return String.format(

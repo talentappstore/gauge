@@ -50,8 +50,8 @@ public class APIController {
 
 	private static final Logger logger = LoggerFactory.getLogger(APIController.class);
 
-	public final static String APP = "gauge";
-	public final static String SECRET = "KR9xElELRHS7mlrdpmJug-pytvxVT3NySlVuP2JY";
+	public final static String APP = "mathrace";
+	public final static String SECRET = "YOURKEY";
 	public final static String APPBASE = "https://" + APP + ".communityapps.talentappstore.com";
 
 	@Autowired
@@ -63,6 +63,11 @@ public class APIController {
 	@Autowired
 	RestTemplate restTemplate;
 
+	void logH2Message() {
+		logger.error("======================================");
+		logger.error(" no account found for tenant - has the h2 database been restarted?");
+		logger.error("======================================");
+	}
 	/**
 	 * helper method to make API calls with the tazzy-secret header as required when making API calls on TAS, and optionally a request body
 	 * @return
@@ -111,31 +116,33 @@ public class APIController {
 
 	// respond with details of our app, e.g. its landing page (when user clicks "open" on the app in the storefront) 
 	@RequestMapping(value = "/t/{tenant}/tas/devs/tas/appStatus", method = RequestMethod.GET)
-	public AppStatus appStatus(@PathVariable String tenant, @RequestHeader("tazzy-secret") String secret) {
-
-		logger.info("in GET /appStatus for tenant " + tenant);
-
+	public String appStatus(@PathVariable String tenant, @RequestHeader("tazzy-secret") String secret) {
+/*
 		if (! secret.equals(SECRET)) {
 				logger.error("mismatching keys: code has " + SECRET + ", incoming is " + secret);
 		}
-		
+*/		
 		if (! secret.equals(SECRET)) throw new UnauthorizedException(); // check incoming tazzy-secret
 
 		// tell the user that setup is needed if they have no credits left
 		Account account = accountRepo.findByTenant(tenant);
-/*		
-		String ret = 			
-				"{" +
-						"  \"landingPage\": \"" + APPBASE + "/t/" + tenant + "/account\"," +
-						"  \"setupRequired\": " + (account.getCreditsRemaining() == 0 ? "true": "false") +
-						"}";
-*/
-;
+		if (account == null)
+			logH2Message();
+
+		String response = "{" +
+				"  \"landingPage\": \"" + APPBASE + "/tenant/" + tenant + "/account\"," +
+				"  \"settingsPage\": \"" + APPBASE + "/tenant/" + tenant + "/account\"," +
+				"  \"setupRequired\": " + (account.getCreditsRemaining() == 0 ? "true": "false") +
+				"}";
 		
-		return new AppStatus(
+/*
+		AppStatus response = new AppStatus(
 				APPBASE + "/t/" + tenant + "/account",
 				null,
 				account.getCreditsRemaining() == 0);
+*/
+		logger.info("in GET /appStatus for tenant " + tenant + ", response is " + response);
+		return response;
 	}
 
 
@@ -152,12 +159,13 @@ public class APIController {
 		String ret = 			
 				"		[" +
 						"		  {" +
-						"		    \"key\": \"gauge\"," +
-						"		    \"userTitle\": \"Quick addition test\"," +
+						"		    \"key\": \"mathrace\"," +
+						"		    \"userTitle\": \"Addition test\"," +
 						"		    \"daysToExpire\": 365," +
 						"		    \"isPassFail\": false," +
-						"		    \"canReuse\": true," +
+						"		    \"canReuse\": false," +
 						"		    \"userDescription\": \"Gauge the candidate's ability to add random pairs of numbers together, under time pressure.\"," +
+						"		    \"candidateDescription\": \"Prove your arithmetic skills by adding random pairs of numbers together! Go as fast as you can.\"," +
 						"		    \"appCommunicatesDirectlyToCandidate\": false," +
 						"		    \"image\": \"" + imageUrl + "\"" + 
 						"		  }" +
@@ -183,7 +191,7 @@ public class APIController {
 		//	switch, based on the assessment's status
 		String status = assessment.get("status").asText();
 		if (status.equals("Started")) {
-			
+
 			// since we never set our assessments to Error, we know this is a new assessment, not a restarted one. Grab some details
 			// from it, and store in our database
 			String viewKey = assessment.get("view").asText();
@@ -215,22 +223,30 @@ public class APIController {
 			String candidateUrl = APPBASE + "/quiz/" + newOne.getKey();
 
 			String reqBody = 
-					"	        {" +
-							"       	  \"status\": \"In progress\"," +
-							"       	  \"interactionUris\": {" +
-							"       	    \"candidateInteractionUri\": \"" + candidateUrl + "\"," +
-							"       	    \"userInteractionUri\": null," +
-							"       	    \"userAttentionRequired\": false" +
-							"       	  }" +
-							"       	}";
+							"        {" +
+							"      	  \"status\": \"In progress\"," +
+							"      	  \"interactionUris\": {" +
+							"      	    \"candidateInteractionUri\": \"" + candidateUrl + "\"," +
+//							"      	    \"candidateInteractionUri\": null," +
+							"      	    \"userInteractionUri\": null," +
+							"      	    \"userAttentionRequired\": false" +
+							"      	  }" +
+							"      	}";
 
 			// now PATCH the assessment to have the candidate URL. For our assessment type, this will cause an email to be sent to the candidate, with
 			// this link in it.
 			String url = "https://" + APP + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id + "/appDetails";
 			logger.info("calling PATCH " + url + " with request body: " + reqBody);
 			RestTemplate restTemplatePatcher = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
-			ResponseEntity<Void> response = restTemplatePatcher.exchange(url, HttpMethod.PATCH,
-					entityWithSecret(reqBody, new MediaType("application", "merge-patch+json")), Void.class);
+			ResponseEntity<String> response = null;
+			try {
+				response = restTemplatePatcher.exchange(url, HttpMethod.PATCH,
+					entityWithSecret(reqBody, new MediaType("application", "merge-patch+json")), String.class);
+			} catch (Exception e) {
+				logger.error("exception thrown - ", e);
+				logger.error(response.getBody());
+				throw e;
+			}
 		} else {
 			logger.error("unhandled status " + status);
 		}
@@ -267,6 +283,9 @@ public class APIController {
 
 		// delete the account and all linked assessments in our database, with 0 credits
 		Account account = accountRepo.findByTenant(tenant);
+		if (account == null)
+			logH2Message();
+		
 		// TODO: delete assessments as well 
 		accountRepo.delete(account);
 	}

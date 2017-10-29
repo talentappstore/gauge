@@ -15,26 +15,47 @@
 </head>
 <body>
 
-<a th:href='${tenant.logoUrl}'>logoUrl</a><br />
-<h1 th:text='${tenant.name}'>name</h1>
+<!--  <img th:src='${tenant.logoUrl}'></img><br />
+ -->
+ 
+<img src='/img/math-icon.png'></img><br />
+
+<h1>Tenant details</h1>
+
 <p>
-Owner: <span th:text='${tenant.name}'>contactEmail</span><br />
-Type: <span th:text='${tenant.name}'>type</span><br />
-You: <span th:text='${givenName}'>&lt;givenName&gt;</span> <span th:text='${familyName}'>&lt;familyName&gt;</span> (<span th:text='${email}'>&lt;email&gt;</span>)
+
+<ul>
+<li>shortCode: <span th:text='${tenant.shortCode}'>shortCode</span>
+<li>name: <span th:text='${tenant.name}'>name</span>
+<li>contactEmail: <span th:text='${tenant.contactEmail}'>contactEmail</span>
+<li>type: <span th:text='${tenant.type}'>type</span>
+</ul>
+
+<h1>User details</h1>
+<ul>
+<li>givenName: <span th:text='${givenName}'>givenName</span>
+<li>familyName: <span th:text='${familyName}'>familyName</span>
+<li>email: <span th:text='${email}'>email</span>
+</ul>
+
 </p>
 
+
 <p>We hope you enjoy using Gauge arithmetic testing to help build your team.
+</p>
+
+<p>You just need a few credits to get you started.
 </p>
 
 <h1>Your gauge quiz credits</h1>
 <table>
 <tbody>
-<tr><td>Remaining quizzes:</td><td th:text='${remaining}'>??</td></tr>
-<tr><td>Used quizzes:</td><td th:text='${used}">??</td></tr>
+<tr><td>Remaining quizzes:</td><td th:text='${account.creditsRemaining}'>??</td></tr>
+<tr><td>Used quizzes:</td><td th:text='${account.creditsUsed}'>??</td></tr>
 </tbody>
 </table>
 
-<form action="#" th:action="@{/t/{tenant}/account}" th:object="${accountForm}" method="post">
+<form action="#" th:action="@{/tenant/{tenant}/account(tenant=${tenant.shortCode})}" th:object="${accountForm}" method="post">
 <p>Get credits: <input type="submit" name="1credit" value="1 credit" /><input type="submit" name="5credits" value="5 credits" />
 </p>
 </form>

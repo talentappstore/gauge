@@ -77,7 +77,8 @@ public class CandidateQuizController {
 			
 			// patch the master assessment (i.e. in the hub) via API, to be "Complete" 
 			String candidateUrl = APIController.APPBASE + "/quiz/" + ass.getKey();
-			String userUrl = APIController.APPBASE + "/quizResult/" + ass.getKey();
+// TODO - reinstate			String userUrl = APIController.APPBASE + "/t/" + ass.getTenant() + "/quizResultUser/" + ass.getKey();
+String userUrl = APIController.APPBASE + "/tenant/" + ass.getTenant() + "/quizResultUser/" + ass.getKey();
 	
 			String imageUrl = "https://16c4b5fa.ngrok.io" + "/scoreWithIcon.png?score=" + ass.getScore() + "&label=GA";
 	
@@ -113,5 +114,17 @@ public class CandidateQuizController {
 		return "showResultToCandidate";
 	}
 
+    // when user sees candidate's quiz result
+    // for /t/{tenant/.. urls like this, tazzy forces the visitor to sso in
+// TODO - reinstate     @GetMapping("/t/{tenant}/quizResultUser/{key}")
+@GetMapping("/tenant/{tenant}/quizResultUser/{key}")
+	public String getQuizResultUser(Model model, @PathVariable long key) {
+
+		Assessment ass = repo.findByKey(key);
+		model.addAttribute("score", ass.getScore());
+
+		return "showResultToUser";
+	}
+    
 	
 }
