@@ -8,6 +8,12 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.UniqueConstraint;
 
+/**
+ * Our local copy of an assessment, hopefully mostly in sync with the remote master held by the assessment hub
+ * 
+ * @author abraae
+ *
+ */
 @Entity
 public class Assessment {
 

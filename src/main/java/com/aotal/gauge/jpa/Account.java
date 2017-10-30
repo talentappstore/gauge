@@ -8,6 +8,12 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.UniqueConstraint;
 
+/**
+ * The details about this tenant - e.g.. how many credits do they have remaining
+ * 
+ * @author abraae
+ *
+ */
 @Entity
 public class Account {
 

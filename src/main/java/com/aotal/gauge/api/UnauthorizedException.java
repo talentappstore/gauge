@@ -1,8 +1,14 @@
-package com.aotal.gauge.controllers;
+package com.aotal.gauge.api;
 
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(value = org.springframework.http.HttpStatus.UNAUTHORIZED)
+/**
+ * The joy of spring - all to throw a 403 error.
+ * 
+ * @author abraae
+ *
+ */
+@ResponseStatus(value = org.springframework.http.HttpStatus.FORBIDDEN)
 public class UnauthorizedException extends RuntimeException {
 
 	public UnauthorizedException() {

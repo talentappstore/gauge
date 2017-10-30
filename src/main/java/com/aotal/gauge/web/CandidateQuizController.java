@@ -1,8 +1,9 @@
-package com.aotal.gauge.controllers;
+package com.aotal.gauge.web;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,25 +20,40 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
 
+import com.aotal.gauge.api.Helpers;
+import com.aotal.gauge.api.TenantAPIController;
+import com.aotal.gauge.jpa.Account;
+import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
 import com.aotal.gauge.jpa.AssessmentRepository;
 
+/**
+ * Web traffic to do with a single assessment/quiz
+ *  
+ * @author abraae
+ *
+ */
 @Controller
 public class CandidateQuizController {
-
 
 	private static final Logger logger = LoggerFactory.getLogger(CandidateQuizController.class);
 
 	@Autowired
-	private AssessmentRepository repo;
+	private AssessmentRepository assessmentRepo;
+	@Autowired
+	private AccountRepository accountRepo;
+	@Autowired
+	private RestTemplate restTemplate;
+	@Autowired
+	private Environment env;
 	
     // when candidate views the quiz
     @GetMapping("/quiz/{key}")
 	public ModelAndView getQuiz(Model model, @PathVariable long key) {
 
-		Assessment ass = repo.findByKey(key);
+		Assessment ass = assessmentRepo.findByKey(key);
 
-		// don't allow the assessment to be completed twice
+		// show quiz page, or redirect to results page if candidate has already completed the quiz
 		if (ass.getStatus().equals("In progress")) {
 			model.addAttribute("assessment", ass);
 			QuizForm qf = new QuizForm(key, ass.getQ1a(), ass.getQ1b(), ass.getQ2a(), ass.getQ2b(), ass.getQ3a(), ass.getQ3b(), ass.getQ4a(), ass.getQ4b());
@@ -45,18 +61,17 @@ public class CandidateQuizController {
 			return new ModelAndView("showQuiz");
 			
 		} else {
-			String redirectUrl = APIController.APPBASE + "/quizResult/" + ass.getKey();
+			String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getKey();
 	        return new ModelAndView("redirect:" + redirectUrl);
 		}
 	}
-
 
     // when candidate clicks submit
 	@PostMapping("/quiz/{key}")
 	public ModelAndView postQuiz(Model model, @PathVariable long key, @ModelAttribute QuizForm q) {
 		
-		// retrieve details for the assessment
-		Assessment ass = repo.findByKey(key);
+		// retrieve from db
+		Assessment ass = assessmentRepo.findByKey(key);
 
 		// don't allow the assessment to be completed twice
 		if (ass.getStatus().equals("In progress")) {
@@ -73,34 +88,16 @@ public class CandidateQuizController {
 			// update our local copy of the assessment
 			ass.setStatus("Complete");
 			ass.setScore(score);
-			repo.save(ass);
-			
-			// patch the master assessment (i.e. in the hub) via API, to be "Complete" 
-			String candidateUrl = APIController.APPBASE + "/quiz/" + ass.getKey();
-// TODO - reinstate			String userUrl = APIController.APPBASE + "/t/" + ass.getTenant() + "/quizResultUser/" + ass.getKey();
-String userUrl = APIController.APPBASE + "/tenant/" + ass.getTenant() + "/quizResultUser/" + ass.getKey();
-	
-			String imageUrl = "https://16c4b5fa.ngrok.io" + "/scoreWithIcon.png?score=" + ass.getScore() + "&label=GA";
-	
-			String reqBody = 
-					"	        {" +
-							"       	  \"status\": \"Complete\"," +
-							"       	  \"image\": \"" + imageUrl + "\"," +
-							"       	  \"interactionUris\": {" +
-							"       	    \"candidateInteractionUri\": \"" + candidateUrl + "\"," +
-							"       	    \"userInteractionUri\": \"" + userUrl + "\"," +
-							"       	    \"userAttentionRequired\": false" +
-							"       	  }" +
-							"       	}";
-	
-			String url = "https://" + APIController.APP + ".tazzy.io/t/" + ass.getTenant() + "/devs/tas/assessments/byID/" + ass.getAssessmentID() + "/appDetails";
-			logger.info("calling PATCH " + url + " with request body: " + reqBody);
-			RestTemplate restTemplatePatcher = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
-			ResponseEntity<Void> response = restTemplatePatcher.exchange(url, HttpMethod.PATCH,
-					APIController.entityWithSecret(reqBody, new MediaType("application", "merge-patch+json")), Void.class);
+			assessmentRepo.save(ass);
+
+			// reduce credits by 1 (race conditions not dealt with !)
+			Account account = accountRepo.findByTenant(ass.getTenant());
+					
+			// patch the master assessment (i.e. in the hub) via API, to be "Complete"
+			TenantAPIController.patchAssessment(env, ass, "Complete", restTemplate);
 		}
 		
-		String redirectUrl = APIController.APPBASE + "/quizResult/" + ass.getKey();
+		String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getKey();
         return new ModelAndView("redirect:" + redirectUrl);
 	}
 
@@ -108,23 +105,27 @@ String userUrl = APIController.APPBASE + "/tenant/" + ass.getTenant() + "/quizRe
     @GetMapping("/quizResult/{key}")
 	public String getQuizResult(Model model, @PathVariable long key) {
 
-		Assessment ass = repo.findByKey(key);
+		Assessment ass = assessmentRepo.findByKey(key);
 		model.addAttribute("score", ass.getScore());
 
 		return "showResultToCandidate";
 	}
 
     // when user sees candidate's quiz result
-    // for /t/{tenant/.. urls like this, tazzy forces the visitor to sso in
-// TODO - reinstate     @GetMapping("/t/{tenant}/quizResultUser/{key}")
-@GetMapping("/tenant/{tenant}/quizResultUser/{key}")
+    @GetMapping("/tenant/{tenant}/quizResultUser/{key}")
 	public String getQuizResultUser(Model model, @PathVariable long key) {
 
-		Assessment ass = repo.findByKey(key);
+		Assessment ass = assessmentRepo.findByKey(key);
 		model.addAttribute("score", ass.getScore());
 
 		return "showResultToUser";
 	}
-    
+
+	@GetMapping("/tenant/{tenant}/notEnoughCredits/{key}")
+	public String showError(Model model, @PathVariable long key) {
+	
+		return "notEnoughCredits";
+	}
+
 	
 }

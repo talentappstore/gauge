@@ -1,13 +1,14 @@
-package com.aotal.gauge.controllers;
+package com.aotal.gauge.web;
 
+/**
+ * Backing object to hold form field values
+ * 
+ * @author abraae
+ *
+ */
 public class QuizForm {
 
     private Long key;
-//    private Long assessmentID;
-//    private String status;
-//    private String givenName;
-//    private String familyName;
-//    private String phoneNumber;
     
     // the operands of each of the 4 equations the candidate will be shown
     int q1a;
