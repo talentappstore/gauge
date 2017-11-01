@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"></meta>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"></meta>
+    <meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content=""></meta>
+    <meta name="author" content=""></meta>
+    <link rel="icon" href="../../favicon.ico" th:href="@{../../favicon.ico}"></link>
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/materialize/0.97.0/css/materialize.min.css" />
+  <link href="/css/materialize.css" media="all" rel="stylesheet" />
+
+    <title>Gauge - account details</title>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="row">
+    <div class="col s12">
+      <h2 class='text-center'>Math Race        <img src='https://cdn.talentappstore.com/apps/mathraceapp/239ab566-f5e7-4229-8fea-33e610ff2d40-20171030180559.png' />
+</h2>
+      <h5 class='text-center grey-text lighten-3'>
+        A demo assessment app by <a href="https://www.talentappstore.com">Talent App Store</a>
+      </h5>
+      <p class='text-center'>
+        With Math Race, you can check a candidate's ability to add random pairs of numbers together, under time pressure.
+      </p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col s12 cards-container">
+       <div class="card blue-grey darken-1">
+         <div class="card-content white-text">
+           <span class="card-title">Credits</span>
+           <p>To send Math Race quizzes, you need credits. We provide you with as many as you want, until Math Race is working effectively for your business.
+</p>
+         </div>
+         <div class="card-action">
+           
+           <p>You have <span th:text='${account.creditsRemaining}'>3</span> credit(s)</p>
+
+           <h5 style='color:red'>You have <span th:text='${account.creditsRemaining}'>no</span> credits</h5>
+           <form action="#" th:action="@{/tenant/{tenant}/account(tenant=${tenant.shortCode})}" th:object="${accountForm}" method="post">
+Get credits (free):&nbsp;&nbsp;<input type="submit" name="1credit" value="1 credit" />&nbsp;<input type="submit" name="5credits" value="5 credits" />
+</form>
+<br />
+           <a href="https://www.talentappstore.com">Contact sales</a>
+         </div>
+        </div>
+       <div class="card blue-grey darken-1">
+         <div class="card-content white-text">
+           <span class="card-title">Assessment types</span>
+           <p>Make Math Race work the way you want - choose from simple, challenging and expert level quizzes.</p>
+           
+         </div>
+         <div class="card-action">
+<form>           
+ <div class="switch">
+    <label>
+      simple (single digit)
+      <input type="checkbox">
+      <span class="lever"></span>
+      On
+    </label>
+  </div>           
+ <div class="switch">
+    <label>
+      challenging (double digits)
+      <input type="checkbox">
+      <span class="lever"></span>
+      On
+    </label>
+  </div>           
+   <div class="switch">
+    <label>
+      expert (triple digits)
+      <input type="checkbox">
+      <span class="lever"></span>
+      On
+    </label>
+  </div>           
+
+</form>           
+           
+         </div>
+        </div>
+       <div class="card blue-grey darken-1">
+         <div class="card-content white-text">
+           <span class="card-title">API counter</span>
+           <p>See how many assessments we've completed for you recently (PATCH /assessments/byID/{}/appDetails).</p>
+         </div>
+         <div class="card-action">
+           <span th:text='${account.creditsUsed}'>??</span> assessments<br /><br />
+           <a href="#">View breakdown</a>
+         </div>
+        </div>
+    </div>
+  </div>
+</div>
+
+
+</body>
+	
+</html>

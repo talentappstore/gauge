@@ -71,6 +71,15 @@ public class AccountController {
 		return "account";
 	}
 
+	// when user views their account
+    @GetMapping("/tenant/{tenant}/materializeAccount")
+	public String getNewAccount(Model model, @PathVariable String tenant) {
+
+		Account account = repo.findByTenant(tenant);
+		populateModel(account, model);
+		return "materializeAccount";
+	}
+
     // when candidate clicks to request 1 credits
     @RequestMapping(value = "/tenant/{tenant}/account", params = "1credit", method = RequestMethod.POST)
 	public String credit1Account(Model model, @PathVariable String tenant) {
