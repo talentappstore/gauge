@@ -21,9 +21,6 @@
 <img src='/img/math-icon.png'></img><br />
 
 <h1>Tenant details</h1>
-
-<p>
-
 <ul>
 <li>shortCode: <span th:text='${tenant.shortCode}'>shortCode</span>
 <li>name: <span th:text='${tenant.name}'>name</span>
@@ -31,14 +28,13 @@
 <li>type: <span th:text='${tenant.type}'>type</span>
 </ul>
 
-<h1>User details</h1>
+<h1>Your sign in details</h1>
 <ul>
-<li>givenName: <span th:text='${givenName}'>givenName</span>
-<li>familyName: <span th:text='${familyName}'>familyName</span>
-<li>email: <span th:text='${email}'>email</span>
+<li>image: <img th:src='${samlDetail.image}' />
+<li>givenName: <span th:text='${samlDetail.givenName}'>givenName</span>
+<li>familyName: <span th:text='${samlDetail.familyName}'>familyName</span>
+<li>email: <span th:text='${samlDetail.email}'>email</span>
 </ul>
-
-</p>
 
 
 <p>We hope you enjoy using Math Race addition testing to help build your team.
@@ -55,7 +51,7 @@
 </tbody>
 </table>
 
-<form action="#" th:action="@{/tenant/{tenant}/account(tenant=${tenant.shortCode})}" th:object="${accountForm}" method="post">
+<form action="#" th:action="@{/t/{tenant}/account(tenant=${tenant.shortCode})}" th:object="${accountForm}" method="post">
 <p>Get credits: <input type="submit" name="1credit" value="1 credit" /><input type="submit" name="5credits" value="5 credits" />
 </p>
 </form>

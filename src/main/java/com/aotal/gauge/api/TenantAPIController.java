@@ -112,8 +112,8 @@ public class TenantAPIController {
 			logH2Message();
 
 		String response = "{" +
-				"  \"landingPage\": \"" + Helpers.getAppBase(env) + "/tenant/" + tenant + "/account\"," +
-				"  \"settingsPage\": \"" + Helpers.getAppBase(env) + "/tenant/" + tenant + "/account\"," +
+				"  \"landingPage\": \"" + Helpers.getAppBase(env) + "/t/" + tenant + "/account\"," +
+				"  \"settingsPage\": \"" + Helpers.getAppBase(env) + "/t/" + tenant + "/account\"," +
 				"  \"setupRequired\": " + (account.getCreditsRemaining() == 0 ? "true": "false") +
 				"}";
 		
@@ -192,15 +192,15 @@ public class TenantAPIController {
 		String imageUrl = null;
 		String userUrl = null;
 		if (status.equals("In progress")) {
-			candidateUrl = Helpers.getAppBase(env) + "/quiz/" + assessment.getKey();
+			candidateUrl = Helpers.getAppBase(env) + "/quiz/" + assessment.getAccessKey();
 			
 		} else if (status.equals("Error")) {
-			userUrl = Helpers.getAppBase(env) + "/tenant/" + assessment.getTenant() + "/notEnoughCredits/" + assessment.getKey();
+			userUrl = Helpers.getAppBase(env) + "/tenant/" + assessment.getTenant() + "/notEnoughCredits/" + assessment.getAccessKey();
 			
 		} else if (status.equals("Complete")) {
-			candidateUrl = Helpers.getAppBase(env) + "/quiz/" + assessment.getKey(); // candidate can still see their own results
-			userUrl = Helpers.getAppBase(env) + "/tenant/" + assessment.getTenant() + "/quizResultUser/" + assessment.getKey();
-			imageUrl = "https://16c4b5fa.ngrok.io" + "/scoreWithIcon.png?score=" + assessment.getScore() + "&label=GA";
+			candidateUrl = Helpers.getAppBase(env) + "/quiz/" + assessment.getAccessKey(); // candidate can still see their own results
+			userUrl = Helpers.getAppBase(env) + "/tenant/" + assessment.getTenant() + "/quizResultUser/" + assessment.getAccessKey();
+			imageUrl = env.getProperty("imageServer") + "/scoreWithIcon.png?score=" + assessment.getScore() + "&label=GA";
 		}
  
 		String reqBody = 

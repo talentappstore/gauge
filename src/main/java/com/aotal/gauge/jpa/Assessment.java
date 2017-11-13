@@ -20,7 +20,7 @@ public class Assessment {
 	static final Random randy = new Random();
     @Id
 //    @GeneratedValue(strategy=GenerationType.AUTO)
-    private Long key;
+    private Long accessKey;
     private String tenant;
     private Long assessmentID;
     private String status;
@@ -41,8 +41,8 @@ public class Assessment {
     // score
     int score;
     
-    public Long getKey() {
-		return key;
+    public Long getAccessKey() {
+		return accessKey;
 	}
 
 
@@ -134,7 +134,7 @@ public class Assessment {
 	public Assessment(String tenant, Long assessmentID, String status, String givenName, String familyName, String phoneNumber,
 			int q1a, int q1b, int q2a, int q2b, int q3a, int q3b, int q4a, int q4b) {
 		super();
-		this.key = randy.nextLong();
+		this.accessKey = randy.nextLong();
 		this.tenant = tenant;
 		this.assessmentID = assessmentID;
 		this.status = status;

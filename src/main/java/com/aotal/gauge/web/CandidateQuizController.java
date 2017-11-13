@@ -51,7 +51,7 @@ public class CandidateQuizController {
     @GetMapping("/quiz/{key}")
 	public ModelAndView getQuiz(Model model, @PathVariable long key) {
 
-		Assessment ass = assessmentRepo.findByKey(key);
+		Assessment ass = assessmentRepo.findByAccessKey(key);
 
 		// show quiz page, or redirect to results page if candidate has already completed the quiz
 		if (ass.getStatus().equals("In progress")) {
@@ -61,7 +61,7 @@ public class CandidateQuizController {
 			return new ModelAndView("showQuiz");
 			
 		} else {
-			String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getKey();
+			String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getAccessKey();
 	        return new ModelAndView("redirect:" + redirectUrl);
 		}
 	}
@@ -71,7 +71,7 @@ public class CandidateQuizController {
 	public ModelAndView postQuiz(Model model, @PathVariable long key, @ModelAttribute QuizForm q) {
 		
 		// retrieve from db
-		Assessment ass = assessmentRepo.findByKey(key);
+		Assessment ass = assessmentRepo.findByAccessKey(key);
 
 		// don't allow the assessment to be completed twice
 		if (ass.getStatus().equals("In progress")) {
@@ -97,7 +97,7 @@ public class CandidateQuizController {
 			TenantAPIController.patchAssessment(env, ass, "Complete", restTemplate);
 		}
 		
-		String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getKey();
+		String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getAccessKey();
         return new ModelAndView("redirect:" + redirectUrl);
 	}
 
@@ -105,7 +105,7 @@ public class CandidateQuizController {
     @GetMapping("/quizResult/{key}")
 	public String getQuizResult(Model model, @PathVariable long key) {
 
-		Assessment ass = assessmentRepo.findByKey(key);
+		Assessment ass = assessmentRepo.findByAccessKey(key);
 		model.addAttribute("score", ass.getScore());
 
 		return "showResultToCandidate";
@@ -115,7 +115,7 @@ public class CandidateQuizController {
     @GetMapping("/tenant/{tenant}/quizResultUser/{key}")
 	public String getQuizResultUser(Model model, @PathVariable long key) {
 
-		Assessment ass = assessmentRepo.findByKey(key);
+		Assessment ass = assessmentRepo.findByAccessKey(key);
 		model.addAttribute("score", ass.getScore());
 
 		return "showResultToUser";
