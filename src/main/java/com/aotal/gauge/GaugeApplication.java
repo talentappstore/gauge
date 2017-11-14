@@ -1,10 +1,13 @@
 package com.aotal.gauge;
 
+import java.util.Collections;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,12 +21,20 @@ public class GaugeApplication {
 		SpringApplication.run(GaugeApplication.class, args);
 	}
 
+    @Autowired
+    private Environment env;
+	
 	@Bean
 	public RestTemplate restTemplate() {
-//	    return new RestTemplate();
-		return new RestTemplate(new HttpComponentsClientHttpRequestFactory()); // special incantation needed for PATCH
+		RestTemplate rt = new RestTemplate(new HttpComponentsClientHttpRequestFactory()); // special incantation needed for PATCH
+		rt.setInterceptors(Collections.singletonList(new SecretKeyInterceptor(env)));  // always attach the secret key as a request header
+		return rt;
+	}
 
+	// build up url string of our app, sitting behind tazzy, for use when generating links
+	@Bean
+	public String appBase() {
+		return "https://" + env.getProperty("tas.app") + ".communityapps.talentappstore.com";
 	}
 	
-
 }

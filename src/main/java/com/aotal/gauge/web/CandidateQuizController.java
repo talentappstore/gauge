@@ -4,23 +4,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.aotal.gauge.api.Helpers;
 import com.aotal.gauge.api.TenantAPIController;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
@@ -46,7 +38,9 @@ public class CandidateQuizController {
 	private RestTemplate restTemplate;
 	@Autowired
 	private Environment env;
-	
+	@Autowired
+	private String appBase;
+
     // when candidate views the quiz
     @GetMapping("/quiz/{key}")
 	public ModelAndView getQuiz(Model model, @PathVariable long key) {
@@ -61,7 +55,7 @@ public class CandidateQuizController {
 			return new ModelAndView("showQuiz");
 			
 		} else {
-			String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getAccessKey();
+			String redirectUrl = appBase + "/quizResult/" + ass.getAccessKey();
 	        return new ModelAndView("redirect:" + redirectUrl);
 		}
 	}
@@ -94,10 +88,10 @@ public class CandidateQuizController {
 			Account account = accountRepo.findByTenant(ass.getTenant());
 					
 			// patch the master assessment (i.e. in the hub) via API, to be "Complete"
-			TenantAPIController.patchAssessment(env, ass, "Complete", restTemplate);
+			TenantAPIController.patchAssessment(env, appBase, ass, "Complete", restTemplate);
 		}
 		
-		String redirectUrl = Helpers.getAppBase(env) + "/quizResult/" + ass.getAccessKey();
+		String redirectUrl = appBase + "/quizResult/" + ass.getAccessKey();
         return new ModelAndView("redirect:" + redirectUrl);
 	}
 

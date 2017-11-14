@@ -27,8 +27,6 @@ public class QuizForm {
     int a4;
 
 
-    
-
 	public int getQ1a() {
 		return q1a;
 	}
@@ -142,6 +140,5 @@ public class QuizForm {
 		this.q4b = q4b;
 	}
 
-	
 	
 }

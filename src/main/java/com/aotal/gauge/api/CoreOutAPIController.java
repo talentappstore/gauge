@@ -25,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import com.aotal.gauge.UnauthorizedException;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
@@ -64,12 +66,16 @@ public class CoreOutAPIController {
 	@Autowired
 	private Environment env;
 
+
+    // CRITICAL: for every endpoint in this controller, check that the incoming tazzy-secret matches our secret key
+	@ModelAttribute
+	private void verify(@RequestHeader("tazzy-secret") String secret) {
+		if (! secret.equals(env.getProperty("tas.secret"))) throw new UnauthorizedException();
+	}
 	
 	// create account in local db
 	@RequestMapping(value = "/tas/core/tenants", method = RequestMethod.POST)
-	public void createTenant(@RequestBody Tenant tenant, @RequestHeader("tazzy-secret") String secret) {
-
-		if (! secret.equals(env.getProperty("tas.secret"))) throw new UnauthorizedException(); // check incoming tazzy-secret
+	public void createTenant(@RequestBody Tenant tenant) {
 
 		// create an account in our database, with 0 credits
 		logger.info("inserting account for tenant " + tenant);
@@ -79,11 +85,9 @@ public class CoreOutAPIController {
 
 	// delete account & associated assessments from local db
 	@RequestMapping(value = "/tas/core/tenants/{tenant}", method = RequestMethod.DELETE)
-	public void deleteTenant(@PathVariable String tenant, @RequestHeader("tazzy-secret") String secret) {
+	public void deleteTenant(@PathVariable String tenant) {
 
 		logger.info("in DELETE /tenants/{tenant} for tenant " + tenant);
-
-		if (! secret.equals(env.getProperty("tas.secret"))) throw new UnauthorizedException(); // check incoming tazzy-secret
 
 		// delete the account and all linked assessments in our database
 		logger.info("deleting account for tenant " + tenant);

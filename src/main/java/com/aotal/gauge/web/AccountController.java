@@ -8,13 +8,14 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.client.RestTemplate;
 
-import com.aotal.gauge.api.Helpers;
+import com.aotal.gauge.UnauthorizedException;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.pojos.SamlDetail;
@@ -37,6 +38,14 @@ public class AccountController {
 	private RestTemplate restTemplate;
 	@Autowired
 	private Environment env;
+	@Autowired
+	private String appBase;
+
+    // CRITICAL: for every endpoint in this controller, check that the incoming tazzy-secret matches our secret key
+	@ModelAttribute
+	private void verify(@RequestHeader("tazzy-secret") String secret) {
+		if (! secret.equals(env.getProperty("tas.secret"))) throw new UnauthorizedException();
+	}
 	
 	// call core APIs to fetch tenant and signed in user details, and attach them to the model
 	private void populateModel(Account account, String samlKey, Model model) {
@@ -45,7 +54,7 @@ public class AccountController {
 		{
 			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/core/tenants/" + account.getTenant();
 			logger.info("calling GET " + url);
-			Tenant tenantObject = restTemplate.exchange(url, HttpMethod.GET, Helpers.entityWithSecret(env), Tenant.class).getBody(); 
+			Tenant tenantObject = restTemplate.exchange(url, HttpMethod.GET, null, Tenant.class).getBody(); 
 			model.addAttribute("tenant", tenantObject);
 		}
 		
@@ -53,7 +62,7 @@ public class AccountController {
 			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/core/tenants/" + account.getTenant()
 					+ "/saml/assertions/byKey/" + samlKey + "/json";
 			logger.info("calling GET " + url);
-			SamlDetail sam = restTemplate.exchange(url, HttpMethod.GET, Helpers.entityWithSecret(env), SamlDetail.class).getBody();
+			SamlDetail sam = restTemplate.exchange(url, HttpMethod.GET, null, SamlDetail.class).getBody();
 			model.addAttribute("samlDetail", sam);
 		}
 	}

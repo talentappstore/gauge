@@ -1,4 +1,4 @@
-package com.aotal.gauge.api;
+package com.aotal.gauge;
 
 import org.springframework.web.bind.annotation.ResponseStatus;
 
