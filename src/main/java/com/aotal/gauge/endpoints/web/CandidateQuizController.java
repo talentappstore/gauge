@@ -1,4 +1,6 @@
-package com.aotal.gauge.web;
+package com.aotal.gauge.endpoints.web;
+
+import javax.servlet.http.HttpServletRequest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,10 +12,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.aotal.gauge.api.TenantAPIController;
+import com.aotal.gauge.endpoints.TASController;
+import com.aotal.gauge.endpoints.UnauthorizedException;
+import com.aotal.gauge.endpoints.api.TenantAPIController;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
@@ -26,20 +31,9 @@ import com.aotal.gauge.jpa.AssessmentRepository;
  *
  */
 @Controller
-public class CandidateQuizController {
+public class CandidateQuizController extends TASController {
 
 	private static final Logger logger = LoggerFactory.getLogger(CandidateQuizController.class);
-
-	@Autowired
-	private AssessmentRepository assessmentRepo;
-	@Autowired
-	private AccountRepository accountRepo;
-	@Autowired
-	private RestTemplate restTemplate;
-	@Autowired
-	private Environment env;
-	@Autowired
-	private String appBase;
 
     // when candidate views the quiz
     @GetMapping("/quiz/{key}")
@@ -55,7 +49,7 @@ public class CandidateQuizController {
 			return new ModelAndView("showQuiz");
 			
 		} else {
-			String redirectUrl = appBase + "/quizResult/" + ass.getAccessKey();
+			String redirectUrl = inBase + "/quizResult/" + ass.getAccessKey();
 	        return new ModelAndView("redirect:" + redirectUrl);
 		}
 	}
@@ -64,10 +58,8 @@ public class CandidateQuizController {
 	@PostMapping("/quiz/{key}")
 	public ModelAndView postQuiz(Model model, @PathVariable long key, @ModelAttribute QuizForm q) {
 		
-		// retrieve from db
-		Assessment ass = assessmentRepo.findByAccessKey(key);
-
 		// don't allow the assessment to be completed twice
+		Assessment ass = assessmentRepo.findByAccessKey(key);
 		if (ass.getStatus().equals("In progress")) {
 		
 			// score candidate from 0-100% on # correct answers
@@ -88,10 +80,10 @@ public class CandidateQuizController {
 			Account account = accountRepo.findByTenant(ass.getTenant());
 					
 			// patch the master assessment (i.e. in the hub) via API, to be "Complete"
-			TenantAPIController.patchAssessment(env, appBase, ass, "Complete", restTemplate);
+			TenantAPIController.patchAssessment(env, inBase, outBase, ass, "Complete", restTemplate);
 		}
 		
-		String redirectUrl = appBase + "/quizResult/" + ass.getAccessKey();
+		String redirectUrl = inBase + "/quizResult/" + ass.getAccessKey();
         return new ModelAndView("redirect:" + redirectUrl);
 	}
 

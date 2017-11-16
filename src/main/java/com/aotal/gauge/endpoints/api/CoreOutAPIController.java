@@ -1,4 +1,4 @@
-package com.aotal.gauge.api;
+package com.aotal.gauge.endpoints.api;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,6 +11,8 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
+
+import javax.servlet.http.HttpServletRequest;
 
 //import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
@@ -35,13 +37,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import com.aotal.gauge.UnauthorizedException;
+import com.aotal.gauge.endpoints.TASController;
+import com.aotal.gauge.endpoints.UnauthorizedException;
+import com.aotal.gauge.endpoints.api.pojos.AppStatus;
+import com.aotal.gauge.endpoints.api.pojos.Tenant;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
 import com.aotal.gauge.jpa.AssessmentRepository;
-import com.aotal.gauge.pojos.AppStatus;
-import com.aotal.gauge.pojos.Tenant;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -55,39 +58,22 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *
  */
 @RestController
-public class CoreOutAPIController {
+public class CoreOutAPIController extends TASController {
 
 	private static final Logger logger = LoggerFactory.getLogger(CoreOutAPIController.class);
 
-	@Autowired
-	private AccountRepository accountRepo;
-	@Autowired
-	RestTemplate restTemplate;
-	@Autowired
-	private Environment env;
-
-
-    // CRITICAL: for every endpoint in this controller, check that the incoming tazzy-secret matches our secret key
-	@ModelAttribute
-	private void verify(@RequestHeader("tazzy-secret") String secret) {
-		if (! secret.equals(env.getProperty("tas.secret"))) throw new UnauthorizedException();
-	}
-	
 	// create account in local db
 	@RequestMapping(value = "/tas/core/tenants", method = RequestMethod.POST)
 	public void createTenant(@RequestBody Tenant tenant) {
 
 		// create an account in our database, with 0 credits
 		logger.info("inserting account for tenant " + tenant);
-		Account account = new Account(tenant.shortCode, 0,  0);
-		accountRepo.save(account);
+		accountRepo.save(new Account(tenant.shortCode, 0,  0));
 	}
 
 	// delete account & associated assessments from local db
 	@RequestMapping(value = "/tas/core/tenants/{tenant}", method = RequestMethod.DELETE)
 	public void deleteTenant(@PathVariable String tenant) {
-
-		logger.info("in DELETE /tenants/{tenant} for tenant " + tenant);
 
 		// delete the account and all linked assessments in our database
 		logger.info("deleting account for tenant " + tenant);
@@ -98,7 +84,6 @@ public class CoreOutAPIController {
 		// TODO: delete assessments as well 
 		accountRepo.delete(account);
 	}
-
 
 }
 

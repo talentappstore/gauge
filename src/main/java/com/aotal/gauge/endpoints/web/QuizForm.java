@@ -1,4 +1,4 @@
-package com.aotal.gauge.web;
+package com.aotal.gauge.endpoints.web;
 
 /**
  * Backing object to hold form field values

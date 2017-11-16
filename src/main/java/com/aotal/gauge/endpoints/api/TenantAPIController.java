@@ -1,4 +1,4 @@
-package com.aotal.gauge.api;
+package com.aotal.gauge.endpoints.api;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,6 +11,8 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
+
+import javax.servlet.http.HttpServletRequest;
 
 //import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
@@ -36,13 +38,14 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import com.aotal.gauge.GaugeApplication;
-import com.aotal.gauge.UnauthorizedException;
+import com.aotal.gauge.endpoints.TASController;
+import com.aotal.gauge.endpoints.UnauthorizedException;
+import com.aotal.gauge.endpoints.api.pojos.AppStatus;
+import com.aotal.gauge.endpoints.api.pojos.Tenant;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
 import com.aotal.gauge.jpa.AssessmentRepository;
-import com.aotal.gauge.pojos.AppStatus;
-import com.aotal.gauge.pojos.Tenant;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -56,45 +59,33 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *
  */
 @RestController
-public class TenantAPIController {
+public class TenantAPIController extends TASController {
 
 	private static final Logger logger = LoggerFactory.getLogger(TenantAPIController.class);
 
-	@Autowired
-	private AssessmentRepository assessmentRepo;
-	@Autowired
-	private AccountRepository accountRepo;
-	@Autowired
-	RestTemplate restTemplate;
-    @Autowired
-    private Environment env;
-	@Autowired
-	private String appBase;
-    
-   
 	static void logH2Message() {
 		logger.error("======================================");
 		logger.error(" no account found for tenant - has the database cleared down?");
 		logger.error("======================================");
 	}
 
-    // CRITICAL: for every endpoint in this controller, check that the incoming tazzy-secret matches our secret key
-	@ModelAttribute
-	private void verify(@RequestHeader("tazzy-secret") String secret) {
-		if (! secret.equals(env.getProperty("tas.secret"))) throw new UnauthorizedException();
+	void logResponse(Object response) throws JsonParseException, JsonMappingException, IOException {
+		ObjectMapper mapper = new ObjectMapper();
+		Object json = mapper.readValue(response.toString(), Object.class);
+		logger.info("\nResponse:\n" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(json));			
 	}
 	
 	// respond with details of our app, e.g. its landing page (when user clicks "open" on the app in the storefront) 
 	@RequestMapping(value = "/t/{tenant}/tas/devs/tas/appStatus", method = RequestMethod.GET)
-	public String appStatus(@PathVariable String tenant) {
+	public String appStatus(@PathVariable String tenant) throws JsonParseException, JsonMappingException, IOException {
 
 		// tell the user that setup is needed if they have no credits left
 		Account account = accountRepo.findByTenant(tenant);
 		if (account == null)
 			logH2Message();
 		String response = "{" +
-				"  \"landingPage\": \"" + appBase + "/t/" + tenant + "/account\"," +
-				"  \"settingsPage\": \"" + appBase + "/t/" + tenant + "/account\"," +
+				"  \"landingPage\": \"" + inBase + "/t/" + tenant + "/account\"," +
+				"  \"settingsPage\": \"" + inBase + "/t/" + tenant + "/account\"," +
 				"  \"setupRequired\": " + (account.getCreditsRemaining() == 0 ? "true": "false") +
 				"}";
 		
@@ -104,15 +95,15 @@ public class TenantAPIController {
 				null,
 				account.getCreditsRemaining() == 0);
 */
-		logger.info("in GET /appStatus for tenant " + tenant + ", response is " + response);
+		logResponse(response);
 		return response;
 	}
 
 	// Respond with a full list of details of all of our assessment types. In this case, we only have one.
 	@RequestMapping(value = "/t/{tenant}/tas/devs/tas/assessmentTypes/forApp", method = RequestMethod.GET)
-	public String getAssessmentTypes(@PathVariable String tenant) {
-		logger.info("in GET /assessmentTypes/forApp for tenant " + tenant);
-		String imageUrl = appBase + "/img/gauge.png";
+	public String getAssessmentTypes(@PathVariable String tenant) throws JsonParseException, JsonMappingException, IOException {
+
+		String imageUrl = inBase + "/img/gauge.png";
 		String ret = 			
 				"		[" +
 						"		  {" +
@@ -128,6 +119,7 @@ public class TenantAPIController {
 						"		  }" +
 						"		]		";
 
+		logResponse(ret);
 		return ret;
 	}
 
@@ -141,7 +133,8 @@ public class TenantAPIController {
 		// in our case, we also want more details - specifically the candidate's phone number - make API call to get it
 		ObjectNode view;
 		{
-			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + tenant + "/devs/tas/applications/views/byKey/" + viewKey;
+//			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + tenant + "/devs/tas/applications/views/byKey/" + viewKey;
+			String url = outBase + "/t/" + tenant + "/devs/tas/applications/views/byKey/" + viewKey;
 			logger.info("GET " + url);
 			String viewDetail = restTemplate.exchange(url, HttpMethod.GET, null, String.class).getBody(); 
 			logger.info("view detail is: " + viewDetail);
@@ -171,21 +164,21 @@ public class TenantAPIController {
 	}
 
 	// PATCH the assessment to reflect our new local reality
-	public static void patchAssessment(Environment env, String appBase, Assessment assessment, String status, RestTemplate restTemplate) {
+	public static void patchAssessment(Environment env, String inBase, String outBase, Assessment assessment, String status, RestTemplate restTemplate) {
 
 		// depending on the assessment's new status, we may/may not offer links to candidate, user, and may/may not show the score image 
 		String candidateUrl = null;
 		String imageUrl = null;
 		String userUrl = null;
 		if (status.equals("In progress")) {
-			candidateUrl = appBase + "/quiz/" + assessment.getAccessKey();
+			candidateUrl = inBase + "/quiz/" + assessment.getAccessKey();
 			
 		} else if (status.equals("Error")) {
-			userUrl = appBase + "/tenant/" + assessment.getTenant() + "/notEnoughCredits/" + assessment.getAccessKey();
+			userUrl = inBase + "/tenant/" + assessment.getTenant() + "/notEnoughCredits/" + assessment.getAccessKey();
 			
 		} else if (status.equals("Complete")) {
-			candidateUrl = appBase + "/quiz/" + assessment.getAccessKey(); // candidate can still see their own results
-			userUrl = appBase + "/tenant/" + assessment.getTenant() + "/quizResultUser/" + assessment.getAccessKey();
+			candidateUrl = inBase + "/quiz/" + assessment.getAccessKey(); // candidate can still see their own results
+			userUrl = inBase + "/tenant/" + assessment.getTenant() + "/quizResultUser/" + assessment.getAccessKey();
 			imageUrl = env.getProperty("imageServer") + "/scoreWithIcon.png?score=" + assessment.getScore() + "&label=GA";
 		}
  
@@ -205,9 +198,8 @@ public class TenantAPIController {
 						"      	}";
 
 		// now PATCH the assessment. If we've changed the candidate url, this will cause an email to be sent to the candidate
-		String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + assessment.getTenant() + "/devs/tas/assessments/byID/" + assessment.getAssessmentID() + "/appDetails";
-		logger.info("calling PATCH " + url + " with request body: " + reqBody);
-//		RestTemplate restTemplatePatcher = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
+//		String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + assessment.getTenant() + "/devs/tas/assessments/byID/" + assessment.getAssessmentID() + "/appDetails";
+		String url = outBase + "/t/" + assessment.getTenant() + "/devs/tas/assessments/byID/" + assessment.getAssessmentID() + "/appDetails";
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(new MediaType("application", "merge-patch+json"));
 		HttpEntity<String> entity = new HttpEntity<String>(reqBody, headers);
@@ -219,7 +211,6 @@ public class TenantAPIController {
 	public String deltaPings(@PathVariable String tenant,
 			@PathVariable long id) throws JsonParseException, JsonMappingException, IOException {
 
-		logger.info("in POST /assessments/byID/{id}/tenantDeltaPings for tenant " + tenant + " and id " + id);
 		// get details from local db
 		Account account = accountRepo.findByTenant(tenant);
 		if (account == null)
@@ -228,7 +219,8 @@ public class TenantAPIController {
 		// get assessment details via API call to GET /assessments/byID/{id}
 		ObjectNode apiAssessment;  
 		{
-			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id;
+//			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id;
+			String url = outBase + "/t/" + tenant + "/devs/tas/assessments/byID/" + id;
 			logger.info("GET " + url);
 			String assessmentDetail = restTemplate.exchange(url, HttpMethod.GET, null, String.class).getBody(); 
 			logger.info("assessment details is: " + assessmentDetail);
@@ -244,10 +236,10 @@ public class TenantAPIController {
 			if (ass == null) { 	// must be a new one
 				if (account.getCreditsRemaining() > 0) {
 					ass = createNewAssessment(tenant, id, apiAssessment, "In progress");
-					patchAssessment(env, appBase, ass, "In progress", restTemplate);
+					patchAssessment(env, inBase, outBase, ass, "In progress", restTemplate);
 				} else  { // still no credits, set it back to error
 					ass = createNewAssessment(tenant, id, apiAssessment, "Error");
-					patchAssessment(env, appBase, ass, "Error", restTemplate);
+					patchAssessment(env, inBase, outBase, ass, "Error", restTemplate);
 				}
 				
 			} else { // its an existing one
@@ -256,12 +248,12 @@ public class TenantAPIController {
 						// if we have enough credits, we can restart the assessment
 						ass.setStatus("In progress");
 						assessmentRepo.save(ass);
-						patchAssessment(env, appBase, ass, "In progress", restTemplate);
+						patchAssessment(env, inBase, outBase, ass, "In progress", restTemplate);
 					} else {
 						logger.info("user tried to restart an Error-ed assessment, but there are still not enough credits");
 						ass.setStatus("Error");
 						assessmentRepo.save(ass);
-						patchAssessment(env, appBase, ass, "Error", restTemplate);
+						patchAssessment(env, inBase, outBase, ass, "Error", restTemplate);
 						return "error";
 					}
 				}
