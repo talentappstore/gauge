@@ -1,5 +1,7 @@
 package com.aotal.gauge.endpoints.api;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -9,6 +11,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -65,37 +69,23 @@ public class TenantAPIController extends TASController {
 
 	static void logH2Message() {
 		logger.error("======================================");
-		logger.error(" no account found for tenant - has the database cleared down?");
+		logger.error(" no account found for tenant - has the database been cleared down?");
 		logger.error("======================================");
-	}
-
-	void logResponse(Object response) throws JsonParseException, JsonMappingException, IOException {
-		ObjectMapper mapper = new ObjectMapper();
-		Object json = mapper.readValue(response.toString(), Object.class);
-		logger.info("\nResponse:\n" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(json));			
 	}
 	
 	// respond with details of our app, e.g. its landing page (when user clicks "open" on the app in the storefront) 
 	@RequestMapping(value = "/t/{tenant}/tas/devs/tas/appStatus", method = RequestMethod.GET)
-	public String appStatus(@PathVariable String tenant) throws JsonParseException, JsonMappingException, IOException {
+	public AppStatus appStatus(@PathVariable String tenant) throws JsonParseException, JsonMappingException, IOException {
 
-		// tell the user that setup is needed if they have no credits left
 		Account account = accountRepo.findByTenant(tenant);
 		if (account == null)
 			logH2Message();
-		String response = "{" +
-				"  \"landingPage\": \"" + inBase + "/t/" + tenant + "/account\"," +
-				"  \"settingsPage\": \"" + inBase + "/t/" + tenant + "/account\"," +
-				"  \"setupRequired\": " + (account.getCreditsRemaining() == 0 ? "true": "false") +
-				"}";
-		
-/*
-		AppStatus response = new AppStatus(
-				Helpers.getAppBase(env) + "/t/" + tenant + "/account",
-				null,
-				account.getCreditsRemaining() == 0);
-*/
-		logResponse(response);
+
+		AppStatus response = new AppStatus();
+		response.landingPage = inBase + "/t/" + tenant + "/account";
+		response.settingsPage = inBase + "/t/" + tenant + "/account";
+		response.setupRequired = account.creditsRemaining <= 0;    // tell the user that setup is needed if they have no credits left
+
 		return response;
 	}
 
@@ -104,6 +94,7 @@ public class TenantAPIController extends TASController {
 	public String getAssessmentTypes(@PathVariable String tenant) throws JsonParseException, JsonMappingException, IOException {
 
 		String imageUrl = inBase + "/img/gauge.png";
+		// a little nasty, but can't be bothered creating POJOs since we only have a single, unchanging assessment type 
 		String ret = 			
 				"		[" +
 						"		  {" +
@@ -119,150 +110,166 @@ public class TenantAPIController extends TASController {
 						"		  }" +
 						"		]		";
 
-		logResponse(ret);
 		return ret;
 	}
 
-	// create a local copy, in our database, of an assessment we learned about through an API call
-	private Assessment createNewAssessment(String tenant, long assessmentID, ObjectNode apiAssessment, String status) throws JsonParseException, JsonMappingException, IOException {
-		String viewKey = apiAssessment.get("view").asText();
-		String givenName = apiAssessment.get("givenName") != null ? apiAssessment.get("givenName").asText() : "";
-		String familyName = apiAssessment.get("familyName") != null ? apiAssessment.get("familyName").asText() : "";
-		String email = apiAssessment.get("email") != null ? apiAssessment.get("email").asText() : "";
+	// load the local Assessment object with fields from the view (givenName etc.)
+	private void loadViewFields(Assessment local) throws JsonParseException, JsonMappingException, IOException { //  throws JsonParseException, JsonMappingException, IOException {
 
-		// in our case, we also want more details - specifically the candidate's phone number - make API call to get it
+		// we also want the candidate's name, email and phone number - make API call to get it from the view.
+		// Since the view is so deeply nested, we can't be bothered creating POJOs, so use jackson's dynamic approach instead
 		ObjectNode view;
 		{
-//			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + tenant + "/devs/tas/applications/views/byKey/" + viewKey;
-			String url = outBase + "/t/" + tenant + "/devs/tas/applications/views/byKey/" + viewKey;
-			logger.info("GET " + url);
+			String url = outBase + "/t/" + local.tenant + "/devs/tas/applications/views/byKey/" + local.view;
 			String viewDetail = restTemplate.exchange(url, HttpMethod.GET, null, String.class).getBody(); 
-			logger.info("view detail is: " + viewDetail);
 			view = new ObjectMapper().readValue(new StringReader(viewDetail), ObjectNode.class);
 		}
-
-		// extract phone number from the view
-		String phoneNumber = "0064-9-3660348"; // view.get("candidate").get("person").get("givenName").asText(); 
-
-		// store the assessment details, along with some random addition problems for the candidate 
-		Random randy = new Random();
-		Assessment newOne = new Assessment(tenant, assessmentID, status,
-				givenName,
-				familyName,
-				phoneNumber,
-				randy.nextInt(100), // random number between 0 and 99
-				randy.nextInt(100),
-				randy.nextInt(100),
-				randy.nextInt(100),
-				randy.nextInt(100),
-				randy.nextInt(100),
-				randy.nextInt(100),
-				randy.nextInt(100));
-		assessmentRepo.save(newOne);
 		
-		return newOne;
-	}
-
-	// PATCH the assessment to reflect our new local reality
-	public static void patchAssessment(Environment env, String inBase, String outBase, Assessment assessment, String status, RestTemplate restTemplate) {
-
-		// depending on the assessment's new status, we may/may not offer links to candidate, user, and may/may not show the score image 
-		String candidateUrl = null;
-		String imageUrl = null;
-		String userUrl = null;
-		if (status.equals("In progress")) {
-			candidateUrl = inBase + "/quiz/" + assessment.getAccessKey();
-			
-		} else if (status.equals("Error")) {
-			userUrl = inBase + "/tenant/" + assessment.getTenant() + "/notEnoughCredits/" + assessment.getAccessKey();
-			
-		} else if (status.equals("Complete")) {
-			candidateUrl = inBase + "/quiz/" + assessment.getAccessKey(); // candidate can still see their own results
-			userUrl = inBase + "/tenant/" + assessment.getTenant() + "/quizResultUser/" + assessment.getAccessKey();
-			imageUrl = env.getProperty("imageServer") + "/scoreWithIcon.png?score=" + assessment.getScore() + "&label=GA";
+		/*
+		 The example view that comes back from Tiny ATS looks like the below, but the actual view that comes back
+		 in production will depend on what fields each specific customer dragged across into their view. Its important for assessment types to explain
+		 to the customer in their description what fields they require, so the customer can set up the view correctly, and to give good error messages
+		 when the view does not hold the data the app requires.
+		 
+		 {
+			"id": 864,
+			"bucketMovements": [],
+			"candidate": {
+				"id": 1,
+				"person": {
+					"givenName": "1",
+					"familyName": "1",
+					"email": "abraae@gmail.com",
+					"vcard": ["vcard", [
+						["version", {}, "text", "4.0"],
+						["prodid", {}, "text", "ez-vcard 0.9.11"],
+						["email", {}, "text", "abraae@gmail.com"],
+						["n", {}, "text", ["1", "1", "", "", ""]],
+						["tel", {}, "text", "0414999999"]
+					]]
+				},
+				"items": [],
+				"categories": []
+			},
+			"job": {
+				"id": 1,
+				"code": "1",
+				"title": "1",
+				"categories": [],
+				"items": []
+			},
+			"items": []
 		}
- 
-		String reqBody = 
-						"        {" +
-						"      	  \"status\": \"" + status + "\"," +
-						"         \"image\": "
-										+ (imageUrl != null ? ("\"" + imageUrl + "\"") : "null") + "," +
-						"      	  \"interactionUris\": {" +
-						"      	    \"candidateInteractionUri\": "
-										+ (candidateUrl != null ? ("\"" + candidateUrl + "\"") : "null") + "," +
-						"      	    \"userInteractionUri\": "
-										+ (userUrl != null ? ("\"" + userUrl + "\"") : "null") + "," +
-						"      	    \"userAttentionRequired\": "
-										+ (status.equals("Error") ? "true" : "false") +
-						"      	  }" +
-						"      	}";
+		 
+		*/ 
 
-		// now PATCH the assessment. If we've changed the candidate url, this will cause an email to be sent to the candidate
-//		String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + assessment.getTenant() + "/devs/tas/assessments/byID/" + assessment.getAssessmentID() + "/appDetails";
-		String url = outBase + "/t/" + assessment.getTenant() + "/devs/tas/assessments/byID/" + assessment.getAssessmentID() + "/appDetails";
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(new MediaType("application", "merge-patch+json"));
-		HttpEntity<String> entity = new HttpEntity<String>(reqBody, headers);
-		ResponseEntity<Void> response = restTemplate.exchange(url, HttpMethod.PATCH, entity, Void.class);
-	}
+		// the view is under the control of the customer, so its very possible they will screw up and not provide the data we expect.
+		// In that case, set the assessment to Error and give them a sturdy error message so they can go back and edit the view.
+		// TODO more detailed error handling to tell the user exactly which field was missing
+		try {
+			local.givenName = view.get("candidate").get("person").get("givenName").asText();
+			local.familyName = view.get("candidate").get("person").get("familyName").asText();
+			local.email = view.get("candidate").get("person").get("email").asText();
 	
-	// this endpoint gets hit whenever one of our assessments is created, or updated, by a user (or automatically)
+			// navigate the bizarro world of vcards and grab the first phone number TODO handle > 1 phone number, picking the best one
+			Iterator<JsonNode> it = view.get("candidate").get("person").get("vcard").elements();
+			it.next(); // skip the silly "vcard" text string
+			Iterator<JsonNode> it2 = it.next().elements();
+			while (it2.hasNext() ) {
+				// see if this group's 1st element is labelled "tel", and if it is, grab the 4th element which will be the number in E164 format
+				Iterator<JsonNode> it3 = it2.next().elements();
+				if (it3.next().asText().equals("tel")) {
+					it3.next();
+					it3.next();
+					local.phoneNumber = it3.next().asText();
+					break; // there could be more phone numbers, depending on the ATS, but we just grab the first and bail 
+				}
+			}
+		} catch (NoSuchElementException		 // thrown if we iterate too far through elements()
+				| NullPointerException e) {	 // thrown if e.g. there is no candidate object
+			logger.error("exception thrown while extracting givenName, familyName, email, phoneNumber from view");  // swallow the exception and return with whatever we managed to get
+		}
+	}
+
+	// This endpoint gets hit whenever one of our assessments is created, or updated, by a user (or automatically).
+	// Its probably the most complex code in the app, kind of a state machine driven from the state of the remote assessment and its view (as
+	// fetched via API) and our local version stored in our database
+	// TODO handle customer cancelling the assessment
 	@RequestMapping(value = "/t/{tenant}/tas/devs/tas/assessments/byID/{id}/tenantDeltaPings", method = RequestMethod.POST)
 	public String deltaPings(@PathVariable String tenant,
 			@PathVariable long id) throws JsonParseException, JsonMappingException, IOException {
 
-		// get details from local db
-		Account account = accountRepo.findByTenant(tenant);
+		Account account = accountRepo.findByTenant(tenant); 		// get account details from local db
 		if (account == null)
 			logH2Message();
 
 		// get assessment details via API call to GET /assessments/byID/{id}
-		ObjectNode apiAssessment;  
-		{
-//			String url = "https://" + env.getProperty("tas.app") + ".tazzy.io/t/" + tenant + "/devs/tas/assessments/byID/" + id;
-			String url = outBase + "/t/" + tenant + "/devs/tas/assessments/byID/" + id;
-			logger.info("GET " + url);
-			String assessmentDetail = restTemplate.exchange(url, HttpMethod.GET, null, String.class).getBody(); 
-			logger.info("assessment details is: " + assessmentDetail);
-			apiAssessment = new ObjectMapper().readValue(new StringReader(assessmentDetail), ObjectNode.class);
-		}
-		
+		com.aotal.gauge.endpoints.api.pojos.Assessment remote = restTemplate.exchange(outBase + "/t/" + tenant + "/devs/tas/assessments/byID/" + id,
+					HttpMethod.GET, null, com.aotal.gauge.endpoints.api.pojos.Assessment.class).getBody(); 
+		 
 		//	switch, based on the assessment's status
-		String status = apiAssessment.get("status").asText();
-		if (status.equals("Started")) {
+		if (remote.status.equals("Started")) {
 
 			// either (a) this is a new assessment, or (b) the user is restarting an existing one after clearing the error condition (insufficient credits)
-			Assessment ass = assessmentRepo.findByAssessmentID(id);
-			if (ass == null) { 	// must be a new one
-				if (account.getCreditsRemaining() > 0) {
-					ass = createNewAssessment(tenant, id, apiAssessment, "In progress");
-					patchAssessment(env, inBase, outBase, ass, "In progress", restTemplate);
-				} else  { // still no credits, set it back to error
-					ass = createNewAssessment(tenant, id, apiAssessment, "Error");
-					patchAssessment(env, inBase, outBase, ass, "Error", restTemplate);
+			Assessment local = assessmentRepo.findByAssessmentID(id);
+			
+			if (local == null) { 	// must be a new one, create a local copy, with all non-null assessment details (except for status), along with some random addition problems for the candidate 
+				Random randy = new Random();
+				local = new Assessment(tenant, id, remote.view,
+						randy.nextInt(100), // random number between 0 and 99
+						randy.nextInt(100),
+						randy.nextInt(100),
+						randy.nextInt(100),
+						randy.nextInt(100),
+						randy.nextInt(100),
+						randy.nextInt(100),
+						randy.nextInt(100));
+
+				loadViewFields(local);	// now attach as many fields as possible from the view
+
+				// now we have enough data to work out what the status should be
+				if (account.creditsRemaining <= 0 || ! local.viewFieldsOK()) {
+					local.status = "Error";
+					assessmentRepo.save(local);
+					patchRemoteAssessment(local);
+				} else  { // no error conditions
+					local.status = "In progress";
+					assessmentRepo.save(local);
+					patchRemoteAssessment(local);
 				}
 				
-			} else { // its an existing one
-				if (ass.getStatus().equals("Error")) {
-					if (account.getCreditsRemaining() > 0) {
-						// if we have enough credits, we can restart the assessment
-						ass.setStatus("In progress");
-						assessmentRepo.save(ass);
-						patchAssessment(env, inBase, outBase, ass, "In progress", restTemplate);
-					} else {
-						logger.info("user tried to restart an Error-ed assessment, but there are still not enough credits");
-						ass.setStatus("Error");
-						assessmentRepo.save(ass);
-						patchAssessment(env, inBase, outBase, ass, "Error", restTemplate);
-						return "error";
+			} else { // its an existing one - so presumably our local copy must be in Error, and the assessment has been recently restarted by the customer  
+				
+				if (local.status.equals("Error")) {
+					// see if all error conditions have now been cleared
+					if (account.creditsRemaining <= 0)
+						logger.info("user tried to restart an Error-ed assessment, but there are not enough credits");  // remain in Error
+					else {
+						if (local.viewFieldsOK())
+							// these must have already been OK, so we can restart the assessment
+							local.status = "In progress";
+						else {
+							// when we last fetched the view, some fields were missing - but perhaps the customer has now fixed the view?
+							loadViewFields(local);	// API call to load view fields again
+							if (local.viewFieldsOK())
+								local.status = "In progress";		// sweet, things are now all go
+							else
+								logger.info("user tried to restart an Error-ed assessment, but there are missing view fields");  // remain in Error
+								;  // some view fields still missing - remain in Error 
+						}
 					}
-				}
+					assessmentRepo.save(local);
+					patchRemoteAssessment(local);
+					
+				} else
+					logger.error("user restarted an assessment, but strangely, our local copy was not in Error state");
 			}
+			
 		} else
-			logger.error("unhandled status " + status);
+			logger.error("unhandled status " + remote.status);
 
 		return "done!";
 	}
-
+	
 }
 

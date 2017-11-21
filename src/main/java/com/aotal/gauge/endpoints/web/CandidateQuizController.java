@@ -42,14 +42,14 @@ public class CandidateQuizController extends TASController {
 		Assessment ass = assessmentRepo.findByAccessKey(key);
 
 		// show quiz page, or redirect to results page if candidate has already completed the quiz
-		if (ass.getStatus().equals("In progress")) {
+		if (ass.status.equals("In progress")) {
 			model.addAttribute("assessment", ass);
-			QuizForm qf = new QuizForm(key, ass.getQ1a(), ass.getQ1b(), ass.getQ2a(), ass.getQ2b(), ass.getQ3a(), ass.getQ3b(), ass.getQ4a(), ass.getQ4b());
+			QuizForm qf = new QuizForm(key, ass.q1a, ass.q1b, ass.q2a, ass.q2b, ass.q3a, ass.q3b, ass.q4a, ass.q4b);
 			model.addAttribute("quizForm", qf);
 			return new ModelAndView("showQuiz");
 			
 		} else {
-			String redirectUrl = inBase + "/quizResult/" + ass.getAccessKey();
+			String redirectUrl = inBase + "/quizResult/" + ass.accessKey;
 	        return new ModelAndView("redirect:" + redirectUrl);
 		}
 	}
@@ -59,31 +59,31 @@ public class CandidateQuizController extends TASController {
 	public ModelAndView postQuiz(Model model, @PathVariable long key, @ModelAttribute QuizForm q) {
 		
 		// don't allow the assessment to be completed twice
-		Assessment ass = assessmentRepo.findByAccessKey(key);
-		if (ass.getStatus().equals("In progress")) {
+		Assessment local = assessmentRepo.findByAccessKey(key);
+		if (local.status.equals("In progress")) {
 		
 			// score candidate from 0-100% on # correct answers
 			int score = 0;
-			if (ass.getQ1a() + ass.getQ1b() == q.getA1()) score++;
-			if (ass.getQ2a() + ass.getQ2b() == q.getA2()) score++;
-			if (ass.getQ3a() + ass.getQ3b() == q.getA3()) score++;
-			if (ass.getQ4a() + ass.getQ4b() == q.getA4()) score++;
+			if (local.q1a + local.q1b == q.a1) score++;
+			if (local.q2a + local.q2b == q.a2) score++;
+			if (local.q3a + local.q3b == q.a3) score++;
+			if (local.q4a + local.q4b == q.a4) score++;
 			score *= 25;
 			logger.info("candidate score is " + score);
 			
 			// update our local copy of the assessment
-			ass.setStatus("Complete");
-			ass.setScore(score);
-			assessmentRepo.save(ass);
+			local.status = "Complete";
+			local.score = score;
+			assessmentRepo.save(local);
+			patchRemoteAssessment(local);		// patch the remote assessment (i.e. in the hub) via API to match
 
 			// reduce credits by 1 (race conditions not dealt with !)
-			Account account = accountRepo.findByTenant(ass.getTenant());
-					
-			// patch the master assessment (i.e. in the hub) via API, to be "Complete"
-			TenantAPIController.patchAssessment(env, inBase, outBase, ass, "Complete", restTemplate);
+			Account account = accountRepo.findByTenant(local.tenant);
+			account.creditsRemaining--;
+			accountRepo.save(account);
 		}
 		
-		String redirectUrl = inBase + "/quizResult/" + ass.getAccessKey();
+		String redirectUrl = inBase + "/quizResult/" + local.accessKey;
         return new ModelAndView("redirect:" + redirectUrl);
 	}
 
@@ -92,26 +92,32 @@ public class CandidateQuizController extends TASController {
 	public String getQuizResult(Model model, @PathVariable long key) {
 
 		Assessment ass = assessmentRepo.findByAccessKey(key);
-		model.addAttribute("score", ass.getScore());
+		model.addAttribute("score", ass.score);
 
 		return "showResultToCandidate";
 	}
 
     // when user sees candidate's quiz result
-    @GetMapping("/tenant/{tenant}/quizResultUser/{key}")
+    @GetMapping("/t/{tenant}/quizResultUser/{key}")
 	public String getQuizResultUser(Model model, @PathVariable long key) {
 
 		Assessment ass = assessmentRepo.findByAccessKey(key);
-		model.addAttribute("score", ass.getScore());
+		model.addAttribute("score", ass.score);
 
 		return "showResultToUser";
 	}
 
-	@GetMapping("/tenant/{tenant}/notEnoughCredits/{key}")
+	@GetMapping("/t/{tenant}/somethingsWrong/{key}")
 	public String showError(Model model, @PathVariable long key) {
 	
-		return "notEnoughCredits";
+		return "somethingsWrong";
 	}
 
+	@GetMapping("/t/{tenant}/underway/{key}")
+	public String underway(Model model, @PathVariable long key) {
+	
+		return "underway";
+	}
+	
 	
 }

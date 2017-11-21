@@ -43,15 +43,14 @@ public class AccountController  extends TASController {
 		
 		// get tenant details and attach
 		{
-			String url = outBase + "/core/tenants/" + account.getTenant();
+			String url = outBase + "/core/tenants/" + account.tenant;
 			Tenant tenantObject = restTemplate.exchange(url, HttpMethod.GET, null, Tenant.class).getBody(); 
 			model.addAttribute("tenant", tenantObject);
 		}
 
 		// get saml details for user and attach
 		{
-			String url = outBase + "/core/tenants/" + account.getTenant()
-					+ "/saml/assertions/byKey/" + samlKey + "/json";
+			String url = outBase + "/core/tenants/" + account.tenant + "/saml/assertions/byKey/" + samlKey + "/json";
 			SamlDetail sam = restTemplate.exchange(url, HttpMethod.GET, null, SamlDetail.class).getBody();
 			model.addAttribute("samlDetail", sam);
 		}
@@ -82,7 +81,7 @@ public class AccountController  extends TASController {
 	public String creditAccount(Model model, String tenant, String tazzySaml, int numCredits) {
 		// update credits on database
 		Account account = accountRepo.findByTenant(tenant);
-		account.setCreditsRemaining(account.getCreditsRemaining() + numCredits);
+		account.creditsRemaining = account.creditsRemaining + numCredits;
 		accountRepo.save(account);
 		// load up model and redisplay
 		populateModel(account, tazzySaml, model);

@@ -46,16 +46,6 @@ public class SecretKeyInterceptor implements ClientHttpRequestInterceptor {
 		// attach secret key
 		HttpHeaders headers = request.getHeaders();
 		headers.add("tazzy-secret", env.getProperty("tas.secret"));
-		
-		// log outgoing request details
-		String log = "< " + request.getMethod() + " " + request.getURI();
-		if (body.length > 0) {
-			ObjectMapper mapper = new ObjectMapper();
-			String bodyString = new String(body);
-			Object json = mapper.readValue(bodyString, Object.class);
-			log += "\nRequest:\n" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);			
-		}
-		logger.info(log);
 
 		return execution.execute(request, body);
 	}

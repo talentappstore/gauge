@@ -13,12 +13,20 @@
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
-<p>Hey, thanks for taking part! Your score was:
-</p>
+<h1>Something's wrong!</h1>
 
-<h1><span th:text='${score}'>score</span></h1>
+<img src='/img/empty.jpg' />
+
+<p>It could be:
+<ul>
+<li>You're out of credits (use the setup page to add - free)
+<li>The view for this assessment type didn't include one of givenName, familyName, email or phoneNumber (fix the view)  
+</ul>
+Once you've corrected the problem, restart this assessment.
+</p>
 
 
 </body>
 	
 </html>
+

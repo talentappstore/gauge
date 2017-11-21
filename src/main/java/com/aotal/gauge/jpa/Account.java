@@ -19,27 +19,9 @@ public class Account {
 
     @Id
 //    @GeneratedValue(strategy=GenerationType.AUTO)
-    private String tenant;
-    private int creditsRemaining;
-    private int creditsUsed;
-	public String getTenant() {
-		return tenant;
-	}
-	public void setTenant(String tenant) {
-		this.tenant = tenant;
-	}
-	public int getCreditsRemaining() {
-		return creditsRemaining;
-	}
-	public void setCreditsRemaining(int creditsRemaining) {
-		this.creditsRemaining = creditsRemaining;
-	}
-	public int getCreditsUsed() {
-		return creditsUsed;
-	}
-	public void setCreditsUsed(int creditsUsed) {
-		this.creditsUsed = creditsUsed;
-	}
+    public String tenant;
+    public int creditsRemaining;
+    public int creditsUsed;
 	
 	public Account(String tenant, int creditsRemaining, int creditsUsed) {
 		super();
