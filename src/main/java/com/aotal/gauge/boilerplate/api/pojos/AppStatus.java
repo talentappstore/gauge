@@ -1,4 +1,4 @@
-package com.aotal.gauge.endpoints.api.pojos;
+package com.aotal.gauge.boilerplate.api.pojos;
 
 public class AppStatus {
 

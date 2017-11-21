@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.WebUtils;
 
+import com.aotal.gauge.boilerplate.TASController;
 import com.aotal.gauge.endpoints.api.CoreOutAPIController;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
@@ -29,47 +30,21 @@ import com.aotal.gauge.jpa.AssessmentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Supertype for our TAS endpoint controllers that:
- * - checks that the incoming tazzy-secret key matches our own secret key
- * - injects commonly used beans
- * - logs basic details of incoming API call (not the request though - oh no, Spring) 
+ * Supertype for our the app's endpoint controllers that:
  * - provides commonly used helpers for its subtypes 
  * 
  * @author abraae
  *
  */
-public class TASController {
+public class GaugeController extends TASController {
 
 	@Autowired
 	protected AssessmentRepository assessmentRepo;
 	@Autowired
 	protected AccountRepository accountRepo;
-	@Autowired
-	protected RestTemplate restTemplate;
-	@Autowired
-	protected Environment env;
-	@Autowired
-	protected String inBase;
-	@Autowired
-	protected String outBase;
 
-	private static final Logger logger = LoggerFactory.getLogger(TASController.class);
+	private static final Logger logger = LoggerFactory.getLogger(GaugeController.class);
 	
-    // CRITICAL: for every endpoint in this controller, check that the incoming tazzy-secret matches our secret key 
-	// TODO: move to a filter instead
-	@ModelAttribute
-	private void verify(@RequestHeader("tazzy-secret") String secret) {
-		if (! secret.equals(env.getProperty("tas.secret"))) throw new UnauthorizedException();
-	}
-
-	// for every endpoint in this controller, log incoming API call details
-	// TODO: move to a filter instead
-	@ModelAttribute
-	private void logIncomingCall(HttpServletRequest request) throws IOException {
-	    logger.info("> " + request.getMethod() + " " + request.getRequestURL().toString()
-	    										+ (request.getQueryString() != null ? ("?" + request.getQueryString()) : ""));
-	}
-
 	// PATCH the remote assessment to reflect our new local reality
 	protected void patchRemoteAssessment(Assessment local) {
 
@@ -90,12 +65,12 @@ public class TASController {
 			imageUrl = env.getProperty("imageServer") + "/scoreWithIcon.png?score=" + local.score + "&label=GA";
 		}
  
-		com.aotal.gauge.endpoints.api.pojos.Assessment remote = new com.aotal.gauge.endpoints.api.pojos.Assessment();
+		com.aotal.gauge.boilerplate.api.pojos.Assessment remote = new com.aotal.gauge.boilerplate.api.pojos.Assessment();
 		remote.status = local.status;
 		if (imageUrl != null)
 			remote.image = imageUrl;
 		{
-			com.aotal.gauge.endpoints.api.pojos.Assessment.URISet uriSet = new com.aotal.gauge.endpoints.api.pojos.Assessment.URISet();
+			com.aotal.gauge.boilerplate.api.pojos.Assessment.URISet uriSet = new com.aotal.gauge.boilerplate.api.pojos.Assessment.URISet();
 			uriSet.candidateInteractionUri = candidateUrl;
 			uriSet.userInteractionUri = userUrl;
 			uriSet.userAttentionRequired = false; // this assessment never needs user input (except on Error - in which case the hub will show the red triangle itself)
@@ -107,7 +82,7 @@ public class TASController {
 		String url = outBase + "/t/" + local.tenant + "/devs/tas/assessments/byID/" + local.assessmentID + "/appDetails";
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(new MediaType("application", "merge-patch+json"));
-		HttpEntity<com.aotal.gauge.endpoints.api.pojos.Assessment> entity = new HttpEntity<com.aotal.gauge.endpoints.api.pojos.Assessment>(remote, headers);
+		HttpEntity<com.aotal.gauge.boilerplate.api.pojos.Assessment> entity = new HttpEntity<com.aotal.gauge.boilerplate.api.pojos.Assessment>(remote, headers);
 		ResponseEntity<Void> response = restTemplate.exchange(url, HttpMethod.PATCH, entity, Void.class);
 	}
 	

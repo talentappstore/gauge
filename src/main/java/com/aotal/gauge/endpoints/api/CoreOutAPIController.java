@@ -37,10 +37,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import com.aotal.gauge.endpoints.TASController;
-import com.aotal.gauge.endpoints.UnauthorizedException;
-import com.aotal.gauge.endpoints.api.pojos.AppStatus;
-import com.aotal.gauge.endpoints.api.pojos.Tenant;
+import com.aotal.gauge.boilerplate.TASController;
+import com.aotal.gauge.boilerplate.UnauthorizedException;
+import com.aotal.gauge.boilerplate.api.pojos.AppStatus;
+import com.aotal.gauge.boilerplate.api.pojos.Tenant;
+import com.aotal.gauge.endpoints.GaugeController;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
@@ -58,7 +59,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *
  */
 @RestController
-public class CoreOutAPIController extends TASController {
+public class CoreOutAPIController extends GaugeController {
 
 	private static final Logger logger = LoggerFactory.getLogger(CoreOutAPIController.class);
 

@@ -42,10 +42,11 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import com.aotal.gauge.GaugeApplication;
-import com.aotal.gauge.endpoints.TASController;
-import com.aotal.gauge.endpoints.UnauthorizedException;
-import com.aotal.gauge.endpoints.api.pojos.AppStatus;
-import com.aotal.gauge.endpoints.api.pojos.Tenant;
+import com.aotal.gauge.boilerplate.TASController;
+import com.aotal.gauge.boilerplate.UnauthorizedException;
+import com.aotal.gauge.boilerplate.api.pojos.AppStatus;
+import com.aotal.gauge.boilerplate.api.pojos.Tenant;
+import com.aotal.gauge.endpoints.GaugeController;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 import com.aotal.gauge.jpa.Assessment;
@@ -63,7 +64,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *
  */
 @RestController
-public class TenantAPIController extends TASController {
+public class TenantAPIController extends GaugeController {
 
 	private static final Logger logger = LoggerFactory.getLogger(TenantAPIController.class);
 
@@ -204,8 +205,8 @@ public class TenantAPIController extends TASController {
 			logH2Message();
 
 		// get assessment details via API call to GET /assessments/byID/{id}
-		com.aotal.gauge.endpoints.api.pojos.Assessment remote = restTemplate.exchange(outBase + "/t/" + tenant + "/devs/tas/assessments/byID/" + id,
-					HttpMethod.GET, null, com.aotal.gauge.endpoints.api.pojos.Assessment.class).getBody(); 
+		com.aotal.gauge.boilerplate.api.pojos.Assessment remote = restTemplate.exchange(outBase + "/t/" + tenant + "/devs/tas/assessments/byID/" + id,
+					HttpMethod.GET, null, com.aotal.gauge.boilerplate.api.pojos.Assessment.class).getBody(); 
 		 
 		//	switch, based on the assessment's status
 		if (remote.status.equals("Started")) {

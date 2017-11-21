@@ -17,10 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.client.RestTemplate;
 
-import com.aotal.gauge.endpoints.TASController;
-import com.aotal.gauge.endpoints.UnauthorizedException;
-import com.aotal.gauge.endpoints.api.pojos.SamlDetail;
-import com.aotal.gauge.endpoints.api.pojos.Tenant;
+import com.aotal.gauge.boilerplate.TASController;
+import com.aotal.gauge.boilerplate.UnauthorizedException;
+import com.aotal.gauge.boilerplate.api.pojos.SamlDetail;
+import com.aotal.gauge.boilerplate.api.pojos.Tenant;
+import com.aotal.gauge.endpoints.GaugeController;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
 
@@ -31,7 +32,7 @@ import com.aotal.gauge.jpa.AccountRepository;
  *
  */
 @Controller
-public class AccountController  extends TASController {
+public class AccountController  extends GaugeController {
 
 	private static final Logger logger = LoggerFactory.getLogger(AccountController.class);
 

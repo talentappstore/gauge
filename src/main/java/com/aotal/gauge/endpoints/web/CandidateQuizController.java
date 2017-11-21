@@ -16,8 +16,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.aotal.gauge.endpoints.TASController;
-import com.aotal.gauge.endpoints.UnauthorizedException;
+import com.aotal.gauge.boilerplate.TASController;
+import com.aotal.gauge.boilerplate.UnauthorizedException;
+import com.aotal.gauge.endpoints.GaugeController;
 import com.aotal.gauge.endpoints.api.TenantAPIController;
 import com.aotal.gauge.jpa.Account;
 import com.aotal.gauge.jpa.AccountRepository;
@@ -31,7 +32,7 @@ import com.aotal.gauge.jpa.AssessmentRepository;
  *
  */
 @Controller
-public class CandidateQuizController extends TASController {
+public class CandidateQuizController extends GaugeController {
 
 	private static final Logger logger = LoggerFactory.getLogger(CandidateQuizController.class);
 
